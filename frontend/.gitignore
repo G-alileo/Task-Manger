@@ -1,0 +1,74 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# pycache
+__pycache__/
+*.pyc
+
+# Env files
+.env
+.env.local
+.env.*.local
+.env.test.local
+.env.production.local
+
+# Misc
+.cache
+.next
+.out
+coverage
+.build
+.tmp
+.nuxt
+.nuxt-storybook
+storybook-static
+*.seed
+*.pid
+*.pid.lock  
+
+# migrations
+migrations/*.js
+!migrations/README.md
+migrations/
+
+# Static files
+static/
+public/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini 
+*.db
+*.rdb
+
+# sqlite files
+*.sqlite
+*.sqlite3
