@@ -288,7 +288,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Rate Limiting Configuration
 # https://django-ratelimit.readthedocs.io/
 
-RATELIMIT_ENABLE = True
+RATELIMIT_ENABLE = True  # Disabled - requires Redis
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_VIEW = 'apps.users.views.rate_limited_view'
 

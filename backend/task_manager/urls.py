@@ -33,4 +33,5 @@ urlpatterns = [
     
     # API Endpoints
     path('api/users/', include('apps.users.urls', namespace='users')),
+    path('api/tasks/', include('apps.tasks.urls', namespace='tasks')),
 ]
