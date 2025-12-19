@@ -1,0 +1,179 @@
+"""
+Task Manager API - Quick Reference
+
+Base URL: http://localhost:8000 (Development)
+          http://0.0.0.0:8000 (Production with Gunicorn + WhiteNoise)
+
+Authentication Endpoints:
+-------------------------
+POST   /api/users/register/        - Register new user (public)
+POST   /api/users/login/           - Login and get JWT tokens (public)
+POST   /api/users/token/refresh/   - Refresh access token (public)
+
+Profile Endpoints:
+-----------------
+GET    /api/users/profile/         - Get current user profile (authenticated)
+PUT    /api/users/profile/         - Update full profile (authenticated)
+PATCH  /api/users/profile/         - Partially update profile (authenticated)
+
+Admin Endpoints:
+---------------
+GET    /api/users/list/            - List all users with pagination (admin only)
+
+API Documentation:
+-----------------
+GET    /api/schema/                - OpenAPI schema (JSON)
+GET    /api/schema/swagger-ui/     - Swagger UI documentation
+GET    /api/schema/redoc/          - ReDoc documentation
+
+Admin Panel:
+-----------
+GET    /admin/                     - Django admin interface
+
+
+Example Usage:
+=============
+
+1. Register a new user:
+curl -X POST http://localhost:8000/api/users/register/ \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "email": "user@example.com",
+    "username": "johndoe",
+    "password": "SecurePass123!",
+    "password_confirm": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Doe"
+  }'
+
+2. Login:
+curl -X POST http://localhost:8000/api/users/login/ \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePass123!"
+  }'
+
+Response:
+{
+  "status": "success",
+  "message": "Login successful",
+  "data": {
+    "user": {...},
+    "tokens": {
+      "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+      "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+    }
+  }
+}
+
+3. Get Profile (requires authentication):
+curl -X GET http://localhost:8000/api/users/profile/ \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+4. Update Profile:
+curl -X PATCH http://localhost:8000/api/users/profile/ \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "bio": "Full-stack developer",
+    "profile_picture": "https://example.com/profile.jpg"
+  }'
+
+5. Refresh Token:
+curl -X POST http://localhost:8000/api/users/token/refresh/ \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "refresh": "YOUR_REFRESH_TOKEN"
+  }'
+
+6. List Users (admin only):
+curl -X GET http://localhost:8000/api/users/list/ \\
+  -H "Authorization: Bearer ADMIN_ACCESS_TOKEN"
+
+
+Response Format:
+===============
+
+Success Response:
+{
+  "status": "success",
+  "message": "Operation successful",
+  "data": {...}
+}
+
+Error Response:
+{
+  "status": "error",
+  "message": "Error description",
+  "errors": {...}
+}
+
+
+Frontend Integration:
+====================
+
+In your React frontend, use the following structure:
+
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8000/api';
+
+// Register
+const register = async (userData) => {
+  const response = await axios.post(`${API_BASE_URL}/users/register/`, userData);
+  return response.data;
+};
+
+// Login
+const login = async (email, password) => {
+  const response = await axios.post(`${API_BASE_URL}/users/login/`, {
+    email,
+    password
+  });
+  return response.data;
+};
+
+// Get Profile (with auth token)
+const getProfile = async (token) => {
+  const response = await axios.get(`${API_BASE_URL}/users/profile/`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return response.data;
+};
+
+// Update Profile
+const updateProfile = async (token, profileData) => {
+  const response = await axios.patch(`${API_BASE_URL}/users/profile/`, profileData, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return response.data;
+};
+
+
+Testing:
+=======
+
+Run tests:
+python manage.py test apps.users.tests
+
+Run specific test class:
+python manage.py test apps.users.tests.UserRegistrationTestCase
+
+Run with verbosity:
+python manage.py test apps.users.tests --verbosity=2
+
+
+All 23 tests passed successfully!
+
+Test Coverage:
+- User registration (success, duplicate email/username, password validation)
+- User login (success, invalid credentials, inactive users)
+- Profile retrieval and updates (GET, PUT, PATCH)
+- Permission enforcement (authenticated, admin)
+- JWT token operations (refresh, authentication)
+"""

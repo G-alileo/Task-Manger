@@ -45,8 +45,11 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_spectacular',
+    'django_ratelimit',
+    'defender',
     # Local apps
     'apps.users',
     'apps.tasks',
@@ -54,6 +57,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -61,6 +65,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'defender.middleware.FailedLoginMiddleware',
 ]
 
 ROOT_URLCONF = 'task_manager.urls'
@@ -99,9 +104,11 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '3306'),
+        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
+            'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', '10')),
         },
     }
 }
@@ -116,6 +123,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': int(os.getenv('PASSWORD_MIN_LENGTH', '8')),
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -140,9 +150,13 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
+# Using WhiteNoise for efficient static file serving
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# WhiteNoise configuration
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -168,7 +182,7 @@ CSRF_TRUSTED_ORIGINS = os.getenv(
 # https://docs.djangoproject.com/en/6.0/ref/settings/#security
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True') == 'True'
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -177,6 +191,13 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Cookie security
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 
 # Django REST Framework Configuration
@@ -245,17 +266,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 
-# Email Configuration
-# https://docs.djangoproject.com/en/6.0/topics/email/
-
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-
-
 # Application Settings
 
 SITE_NAME = os.getenv('SITE_NAME', 'Task Manager')
@@ -273,3 +283,180 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Rate Limiting Configuration
+# https://django-ratelimit.readthedocs.io/
+
+RATELIMIT_ENABLE = True
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_VIEW = 'apps.users.views.rate_limited_view'
+
+
+# Django Defender Configuration (Brute Force Protection)
+# https://django-defender.readthedocs.io/
+
+DEFENDER_LOGIN_FAILURE_LIMIT = int(os.getenv('DEFENDER_FAILURE_LIMIT', '5'))
+DEFENDER_COOLOFF_TIME = int(os.getenv('DEFENDER_COOLOFF_TIME', '300'))
+DEFENDER_LOCKOUT_TEMPLATE = None  # Use JSON response
+DEFENDER_REDIS_URL = os.getenv('REDIS_URL', f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0")
+DEFENDER_STORE_ACCESS_ATTEMPTS = True
+DEFENDER_USE_CELERY = False
+DEFENDER_ACCESS_ATTEMPT_EXPIRATION = int(os.getenv('DEFENDER_ATTEMPT_EXPIRATION', '24'))
+
+
+# Logging Configuration
+# https://docs.djangoproject.com/en/6.0/topics/logging/
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose'
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/django.log'),
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'security_file': {
+            'level': 'WARNING',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/security.log'),
+            'maxBytes': 1024 * 1024 * 10,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'user_activity_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/user_activity.log'),
+            'maxBytes': 1024 * 1024 * 10,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['security_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'apps.users': {
+            'handlers': ['console', 'user_activity_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'defender': {
+            'handlers': ['security_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+
+# Create logs directory if it doesn't exist
+import os
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+
+# Caching with Redis
+# https://docs.djangoproject.com/en/6.0/topics/cache/
+
+USE_REDIS = os.getenv('USE_REDIS', 'True') == 'True'
+
+if USE_REDIS:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': os.getenv('REDIS_URL', f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/1"),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': os.getenv('REDIS_PASSWORD', ''),
+                'SOCKET_CONNECT_TIMEOUT': int(os.getenv('REDIS_CONNECT_TIMEOUT', '5')),
+                'SOCKET_TIMEOUT': int(os.getenv('REDIS_TIMEOUT', '5')),
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50'))
+                }
+            },
+            'KEY_PREFIX': os.getenv('REDIS_KEY_PREFIX', 'taskmanager'),
+            'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
+        }
+    }
+    # Use Redis for sessions
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'default'
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
+
+
+# Sentry Configuration (Error Monitoring)
+# https://docs.sentry.io/platforms/python/guides/django/
+
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+if SENTRY_DSN and not DEBUG:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
+        send_default_pii=False,
+        environment=os.getenv('ENVIRONMENT', 'production'),
+        release=os.getenv('RELEASE_VERSION', 'unknown'),
+    )
+
+
+# Admin Configuration
+# https://docs.djangoproject.com/en/6.0/ref/contrib/admin/
+
+ADMINS = [
+    ('Admin', os.getenv('ADMIN_EMAIL', 'admin@taskmanager.com')),
+]
+MANAGERS = ADMINS
