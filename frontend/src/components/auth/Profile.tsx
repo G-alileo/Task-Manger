@@ -1,55 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { motion } from 'framer-motion';
-import { User, Mail, Edit2, Save, X, Camera, Loader, AlertCircle, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { motion } from "framer-motion";
+import {
+  User,
+  Mail,
+  Edit2,
+  Save,
+  X,
+  Camera,
+  Loader,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 
-const Profile: React.FC = () => {
+export default function Profile() {
   const { user, updateProfile, loading: authLoading } = useAuth();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    username: '',
-    bio: '',
+    first_name: "",
+    last_name: "",
+    username: "",
+    bio: "",
   });
 
   useEffect(() => {
     if (user) {
       setFormData({
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        username: user.username || '',
-        bio: user.bio || '',
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        username: user.username || "",
+        bio: user.bio || "",
       });
     }
   }, [user]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
     setLoading(true);
 
     try {
       await updateProfile(formData);
-      setSuccess('Profile updated successfully!');
+      setSuccess("Profile updated successfully!");
       setIsEditing(false);
-      
-      setTimeout(() => setSuccess(''), 3000);
+
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 
-                          err.response?.data?.username?.[0] ||
-                          'Failed to update profile. Please try again.';
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.username?.[0] ||
+        "Failed to update profile. Please try again.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -59,33 +72,38 @@ const Profile: React.FC = () => {
   const handleCancel = () => {
     if (user) {
       setFormData({
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        username: user.username || '',
-        bio: user.bio || '',
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        username: user.username || "",
+        bio: user.bio || "",
       });
     }
     setIsEditing(false);
-    setError('');
+    setError("");
   };
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center"
-           style={{
-             background: 'linear-gradient(135deg, #1f1c2c 0%, #2d2840 50%, #928dab 100%)'
-           }}>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background:
+            "linear-gradient(135deg, #1f1c2c 0%, #2d2840 50%, #928dab 100%)",
+        }}
+      >
         <Loader className="w-8 h-8 text-purple-400 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen px-4 py-12 relative overflow-hidden"
-         style={{
-           background: 'linear-gradient(135deg, #1f1c2c 0%, #2d2840 50%, #928dab 100%)'
-         }}>
-      
+    <div
+      className="min-h-screen px-4 py-12 relative overflow-hidden"
+      style={{
+        background:
+          "linear-gradient(135deg, #1f1c2c 0%, #2d2840 50%, #928dab 100%)",
+      }}
+    >
       {/* Ambient Background Effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-20 w-96 h-96 bg-purple-600/10 rounded-full blur-[140px]" />
@@ -93,7 +111,6 @@ const Profile: React.FC = () => {
       </div>
 
       <div className="max-w-2xl mx-auto relative z-10">
-        
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -131,13 +148,16 @@ const Profile: React.FC = () => {
 
           {/* Profile Card */}
           <div className="backdrop-blur-xl bg-white/5 rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
-            
             {/* Profile Header with Avatar */}
             <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 p-8 text-center relative">
               <div className="relative inline-block">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 
-                              flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                  {user.first_name ? user.first_name[0].toUpperCase() : user.username[0].toUpperCase()}
+                <div
+                  className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 
+                              flex items-center justify-center text-white text-3xl font-bold shadow-lg"
+                >
+                  {user.first_name
+                    ? user.first_name[0].toUpperCase()
+                    : user.username[0].toUpperCase()}
                 </div>
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -150,27 +170,30 @@ const Profile: React.FC = () => {
                   <Camera className="w-4 h-4" />
                 </motion.button>
               </div>
-              
+
               <h2 className="mt-4 text-2xl font-bold text-white">
                 {user.first_name || user.last_name
                   ? `${user.first_name} ${user.last_name}`.trim()
                   : user.username}
               </h2>
               <p className="text-gray-300 mt-1">{user.email}</p>
-              
-              {user.date_joined && (
+
+              {(user as any).date_joined && (
                 <p className="text-gray-400 text-sm mt-2">
-                  Member since {new Date(user.date_joined).toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })}
+                  Member since{" "}
+                  {new Date((user as any).date_joined).toLocaleDateString(
+                    "en-US",
+                    {
+                      month: "long",
+                      year: "numeric",
+                    }
+                  )}
                 </p>
               )}
             </div>
 
             {/* Profile Form */}
             <div className="p-8">
-              
               {/* Edit Toggle Button */}
               <div className="flex justify-end mb-6">
                 {!isEditing ? (
@@ -203,11 +226,13 @@ const Profile: React.FC = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                
                 {/* Name Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="first_name" className="block text-sm font-medium text-gray-300 mb-2">
+                    <label
+                      htmlFor="first_name"
+                      className="block text-sm font-medium text-gray-300 mb-2"
+                    >
                       First Name
                     </label>
                     <div className="relative">
@@ -227,9 +252,12 @@ const Profile: React.FC = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
-                    <label htmlFor="last_name" className="block text-sm font-medium text-gray-300 mb-2">
+                    <label
+                      htmlFor="last_name"
+                      className="block text-sm font-medium text-gray-300 mb-2"
+                    >
                       Last Name
                     </label>
                     <div className="relative">
@@ -253,7 +281,10 @@ const Profile: React.FC = () => {
 
                 {/* Email (Read-only) */}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     Email Address
                   </label>
                   <div className="relative">
@@ -267,12 +298,17 @@ const Profile: React.FC = () => {
                                text-gray-400 cursor-not-allowed opacity-50"
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-400">Email cannot be changed</p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Email cannot be changed
+                  </p>
                 </div>
 
                 {/* Username */}
                 <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="username"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     Username
                   </label>
                   <div className="relative">
@@ -295,7 +331,10 @@ const Profile: React.FC = () => {
 
                 {/* Bio */}
                 <div>
-                  <label htmlFor="bio" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="bio"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     Bio
                   </label>
                   <textarea
@@ -348,6 +387,4 @@ const Profile: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default Profile;
+}

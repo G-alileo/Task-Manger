@@ -5,19 +5,19 @@
  * Features: JWT authentication, rate-limit handling, smooth animations
  */
 
-import React, { useState } from 'react';
+import { useState } from "react";
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, AlertCircle, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-export const Login: React.FC = () => {
+export default function Login() {
   const navigate = useNavigate();
   const { login, error, clearError } = useAuth();
-  
+
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,9 +33,9 @@ export const Login: React.FC = () => {
 
     try {
       await login(formData);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err) {
-      console.error('Login error:', err);
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
@@ -66,12 +66,12 @@ export const Login: React.FC = () => {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
                 className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#928dab] to-[#6b668c] flex items-center justify-center shadow-lg shadow-purple-500/30"
               >
                 <LogIn className="text-white" size={28} />
               </motion.div>
-              
+
               <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
                 Welcome Back
               </h1>
@@ -87,9 +87,14 @@ export const Login: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3"
               >
-                <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" size={18} />
+                <AlertCircle
+                  className="text-red-400 flex-shrink-0 mt-0.5"
+                  size={18}
+                />
                 <p className="text-sm text-red-300 flex-1">
-                  {typeof error === 'string' ? error : 'Login failed. Please check your credentials.'}
+                  {typeof error === "string"
+                    ? error
+                    : "Login failed. Please check your credentials."}
                 </p>
               </motion.div>
             )}
@@ -98,7 +103,10 @@ export const Login: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email Input */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
                   Email Address
                 </label>
                 <div className="relative">
@@ -120,7 +128,10 @@ export const Login: React.FC = () => {
 
               {/* Password Input */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -130,7 +141,7 @@ export const Login: React.FC = () => {
                   <input
                     id="password"
                     name="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     required
                     value={formData.password}
                     onChange={handleChange}
@@ -143,7 +154,7 @@ export const Login: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors"
                   >
                     <span className="text-xs font-medium">
-                      {showPassword ? 'Hide' : 'Show'}
+                      {showPassword ? "Hide" : "Show"}
                     </span>
                   </button>
                 </div>
@@ -217,6 +228,4 @@ export const Login: React.FC = () => {
       </motion.div>
     </div>
   );
-};
-
-export default Login;
+}

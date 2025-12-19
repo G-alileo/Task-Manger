@@ -7,16 +7,19 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center"
-           style={{
-             background: 'linear-gradient(135deg, #1f1c2c 0%, #2d2840 50%, #928dab 100%)'
-           }}>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background:
+            "linear-gradient(135deg, #1f1c2c 0%, #2d2840 50%, #928dab 100%)",
+        }}
+      >
         <div className="text-center">
           <Loader className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
           <p className="text-gray-300">Loading...</p>
@@ -33,4 +36,4 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   return <>{children}</>;
 };
 
-export default ProtectedRoute;
+
