@@ -7,7 +7,6 @@ import {
   Settings, 
   ChevronRight, 
   ChevronLeft, 
-  Sparkles,
   LogOut,
   Plus
 } from 'lucide-react';
@@ -102,12 +101,12 @@ export function Sidebar() {
       <motion.div
         className="h-[calc(100vh-48px)] bg-[#2A2A2A]/85 backdrop-blur-2xl border border-white/5 flex flex-col relative rounded-[32px] shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
         initial="expanded"
-        animate={isCollapsed ? 'collapsed' : 'expanded'}
+        animate={isCollapsed ? "collapsed" : "expanded"}
         variants={sidebarVariants}
         transition={{
-          type: 'spring',
+          type: "spring",
           stiffness: 300,
-          damping: 30
+          damping: 30,
         }}
       >
         {/* Subtle inner glow */}
@@ -116,8 +115,12 @@ export function Sidebar() {
         {/* Logo Area */}
         <div className="p-6 flex items-center justify-center border-b border-white/[0.03]">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6b668c] to-[#928dab] flex items-center justify-center shrink-0 shadow-lg">
-              <Sparkles className="text-white" size={20} />
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-lg p-2 border border-white/5">
+              <img
+                src="/branding/quid.png"
+                alt="Quid Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <AnimatePresence>
               {!isCollapsed && (
@@ -169,7 +172,11 @@ export function Sidebar() {
 
         {/* User Profile */}
         <div className="p-4 border-t border-white/10 bg-white/[0.02]">
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div
+            className={`flex items-center gap-3 ${
+              isCollapsed ? "justify-center" : ""
+            }`}
+          >
             {user?.profile_picture ? (
               <img
                 src={user.profile_picture}
@@ -178,7 +185,9 @@ export function Sidebar() {
               />
             ) : (
               <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#6b668c] to-[#928dab] shrink-0 shadow-lg flex items-center justify-center text-white font-bold text-base">
-                {user?.full_name?.charAt(0).toUpperCase() || user?.username?.charAt(0).toUpperCase() || 'U'}
+                {user?.full_name?.charAt(0).toUpperCase() ||
+                  user?.username?.charAt(0).toUpperCase() ||
+                  "U"}
               </div>
             )}
             <AnimatePresence>
@@ -190,18 +199,18 @@ export function Sidebar() {
                   className="flex-1 overflow-hidden"
                 >
                   <p className="text-sm font-bold text-white truncate">
-                    {user?.username || 'User'}
+                    {user?.username || "User"}
                   </p>
                   <p className="text-xs text-gray-400 truncate">
-                    {user?.first_name && user?.last_name 
-                      ? `${user.first_name} ${user.last_name}` 
-                      : user?.email || 'user@example.com'}
+                    {user?.first_name && user?.last_name
+                      ? `${user.first_name} ${user.last_name}`
+                      : user?.email || "user@example.com"}
                   </p>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-          
+
           {!isCollapsed && (
             <motion.button
               initial={{ opacity: 0 }}

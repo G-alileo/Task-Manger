@@ -205,12 +205,16 @@ const ProfileSettings = React.forwardRef(({ user, updateProfile }: { user: any; 
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-white mb-6">Profile Information</h2>
-      
+      <h2 className="text-2xl font-bold text-white mb-6">
+        Profile Information
+      </h2>
+
       <div className="space-y-6">
         {/* Profile Picture */}
         <div className="pb-6 border-b border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-4">Profile Picture</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Profile Picture
+          </h3>
           <div className="flex items-start gap-6">
             <div className="relative group">
               {profileImage ? (
@@ -221,10 +225,12 @@ const ProfileSettings = React.forwardRef(({ user, updateProfile }: { user: any; 
                 />
               ) : (
                 <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-[#6b668c] to-[#928dab] flex items-center justify-center text-white text-4xl font-bold shadow-xl border-4 border-white/10">
-                  {user?.full_name?.charAt(0).toUpperCase() || user?.username?.charAt(0).toUpperCase() || 'U'}
+                  {user?.full_name?.charAt(0).toUpperCase() ||
+                    user?.username?.charAt(0).toUpperCase() ||
+                    "U"}
                 </div>
               )}
-              
+
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -248,9 +254,9 @@ const ProfileSettings = React.forwardRef(({ user, updateProfile }: { user: any; 
                   className="flex items-center gap-2 px-4 py-2 bg-[#6b668c] hover:bg-[#928dab] text-white rounded-xl transition-all disabled:opacity-50"
                 >
                   <Upload size={18} />
-                  {uploading ? 'Uploading...' : 'Upload Photo'}
+                  {uploading ? "Uploading..." : "Upload Photo"}
                 </button>
-                
+
                 {profileImage && (
                   <button
                     onClick={handleRemoveImage}
@@ -261,7 +267,9 @@ const ProfileSettings = React.forwardRef(({ user, updateProfile }: { user: any; 
                   </button>
                 )}
               </div>
-              <p className="text-sm text-gray-400 mb-1">Allowed: JPG, PNG, GIF</p>
+              <p className="text-sm text-gray-400 mb-1">
+                Allowed: JPG, PNG, GIF
+              </p>
               <p className="text-sm text-gray-400">Max: 2MB</p>
             </div>
           </div>
@@ -269,59 +277,111 @@ const ProfileSettings = React.forwardRef(({ user, updateProfile }: { user: any; 
 
         {/* Basic Information */}
         <div>
-          <h3 className="text-lg font-semibold text-white mb-4">Basic Information</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Basic Information
+          </h3>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2 uppercase">First Name</label>
+                <label
+                  htmlFor="profile-first-name"
+                  className="block text-sm font-semibold text-gray-400 mb-2 uppercase"
+                >
+                  First Name
+                </label>
                 <input
                   type="text"
+                  id="profile-first-name"
+                  name="first_name"
+                  autoComplete="given-name"
                   value={formData.first_name}
-                  onChange={(e) => handleInputChange('first_name', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("first_name", e.target.value)
+                  }
                   placeholder="Enter first name"
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6b668c] transition-all"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2 uppercase">Last Name</label>
+                <label
+                  htmlFor="profile-last-name"
+                  className="block text-sm font-semibold text-gray-400 mb-2 uppercase"
+                >
+                  Last Name
+                </label>
                 <input
                   type="text"
+                  id="profile-last-name"
+                  name="last_name"
+                  autoComplete="family-name"
                   value={formData.last_name}
-                  onChange={(e) => handleInputChange('last_name', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("last_name", e.target.value)
+                  }
                   placeholder="Enter last name"
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6b668c] transition-all"
                 />
               </div>
             </div>
-            
+
             <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2 uppercase">Email</label>
+              <label
+                htmlFor="profile-email"
+                className="block text-sm font-semibold text-gray-400 mb-2 uppercase"
+              >
+                Email
+              </label>
               <input
                 type="email"
-                value={user?.email || ''}
+                id="profile-email"
+                name="email"
+                autoComplete="email"
+                value={user?.email || ""}
                 disabled
+                aria-readonly="true"
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white opacity-50 cursor-not-allowed"
               />
-              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2 uppercase">Username</label>
-              <input
-                type="text"
-                value={user?.username || ''}
-                disabled
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white opacity-50 cursor-not-allowed"
-              />
-              <p className="text-xs text-gray-500 mt-1">Username cannot be changed</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Email cannot be changed
+              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2 uppercase">Bio</label>
+              <label
+                htmlFor="profile-username"
+                className="block text-sm font-semibold text-gray-400 mb-2 uppercase"
+              >
+                Username
+              </label>
+              <input
+                type="text"
+                id="profile-username"
+                name="username"
+                autoComplete="username"
+                value={user?.username || ""}
+                disabled
+                aria-readonly="true"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white opacity-50 cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Username cannot be changed
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="profile-bio"
+                className="block text-sm font-semibold text-gray-400 mb-2 uppercase"
+              >
+                Bio
+              </label>
               <textarea
+                id="profile-bio"
+                name="bio"
+                autoComplete="off"
                 value={formData.bio}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
+                onChange={(e) => handleInputChange("bio", e.target.value)}
                 placeholder="Tell us about yourself..."
                 rows={4}
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6b668c] transition-all resize-none"

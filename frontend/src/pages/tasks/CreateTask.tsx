@@ -58,9 +58,7 @@ export default function CreateTask() {
         submitData.due_date = `${formData.due_date} 23:59:59`;
       }
 
-      console.log('Submitting task data:', submitData);
-      const response = await createTask(submitData);
-      console.log('Task created successfully:', response);
+      await createTask(submitData);
       setSuccess(true);
       
       // Show success message then navigate
@@ -148,7 +146,7 @@ export default function CreateTask() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1f1c2c] via-[#2d2840] to-[#928dab] flex">
       <Sidebar />
-      
+
       <div className="flex-1 p-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -157,10 +155,15 @@ export default function CreateTask() {
               onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4 group"
             >
-              <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+              <ArrowLeft
+                size={20}
+                className="group-hover:-translate-x-1 transition-transform"
+              />
               <span>Back</span>
             </button>
-            <h1 className="text-4xl font-bold text-white mb-2">Create New Task</h1>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Create New Task
+            </h1>
             <p className="text-gray-400">Add a new task to your workflow</p>
           </div>
 
@@ -176,7 +179,10 @@ export default function CreateTask() {
                 <p className="text-red-400 font-medium">Error</p>
                 <p className="text-red-300 text-sm">{error}</p>
               </div>
-              <button onClick={() => setError('')} className="text-red-400 hover:text-red-300">
+              <button
+                onClick={() => setError("")}
+                className="text-red-400 hover:text-red-300"
+              >
                 <X size={18} />
               </button>
             </motion.div>
@@ -187,12 +193,16 @@ export default function CreateTask() {
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-xl space-y-6">
               {/* Title */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase">
+                <label
+                  htmlFor="task-title"
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase"
+                >
                   <FileText size={16} />
                   Task Title *
                 </label>
                 <input
                   type="text"
+                  id="task-title"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
@@ -204,11 +214,15 @@ export default function CreateTask() {
 
               {/* Description */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase">
+                <label
+                  htmlFor="task-description"
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase"
+                >
                   <FileText size={16} />
                   Description
                 </label>
                 <textarea
+                  id="task-description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
@@ -222,60 +236,88 @@ export default function CreateTask() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Priority */}
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase">
+                  <label
+                    htmlFor="task-priority"
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase"
+                  >
                     <Flag size={16} />
                     Priority
                   </label>
                   <div className="relative">
                     <select
+                      id="task-priority"
                       name="priority"
                       value={formData.priority}
                       onChange={handleChange}
                       className="w-full px-4 py-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#6b668c] focus:border-[#928dab] transition-all appearance-none cursor-pointer hover:bg-white/10"
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23928dab'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 0.75rem center',
-                        backgroundSize: '1.25rem'
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "right 0.75rem center",
+                        backgroundSize: "1.25rem",
                       }}
                     >
-                      <option value="low" className="bg-[#2A2A2A] text-white">Low Priority</option>
-                      <option value="medium" className="bg-[#2A2A2A] text-white">Medium Priority</option>
-                      <option value="high" className="bg-[#2A2A2A] text-white">High Priority</option>
-                      <option value="urgent" className="bg-[#2A2A2A] text-white">Urgent Priority</option>
+                      <option value="low" className="bg-[#2A2A2A] text-white">
+                        Low Priority
+                      </option>
+                      <option
+                        value="medium"
+                        className="bg-[#2A2A2A] text-white"
+                      >
+                        Medium Priority
+                      </option>
+                      <option value="high" className="bg-[#2A2A2A] text-white">
+                        High Priority
+                      </option>
+                      <option
+                        value="urgent"
+                        className="bg-[#2A2A2A] text-white"
+                      >
+                        Urgent Priority
+                      </option>
                     </select>
                   </div>
-                  
+
                   {/* Priority Preview */}
                   <div className="mt-3">
-                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${getPriorityColor(formData.priority || 'medium')}`}>
+                    <span
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${getPriorityColor(
+                        formData.priority || "medium"
+                      )}`}
+                    >
                       <Flag size={14} />
-                      {(formData.priority || 'medium').charAt(0).toUpperCase() + (formData.priority || 'medium').slice(1)}
+                      {(formData.priority || "medium").charAt(0).toUpperCase() +
+                        (formData.priority || "medium").slice(1)}
                     </span>
                   </div>
                 </div>
 
                 {/* Due Date */}
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase">
+                  <label
+                    htmlFor="task-due-date"
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2 uppercase"
+                  >
                     <Calendar size={16} />
                     Due Date
                   </label>
                   <input
                     type="date"
+                    id="task-due-date"
                     name="due_date"
                     value={formData.due_date}
                     onChange={handleChange}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={new Date().toISOString().split("T")[0]}
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#6b668c] focus:border-[#928dab] transition-all"
                   />
                   {formData.due_date && (
                     <p className="mt-2 text-sm text-gray-400">
-                      Due {new Date(formData.due_date).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                      Due{" "}
+                      {new Date(formData.due_date).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
                       })}
                     </p>
                   )}
@@ -301,7 +343,7 @@ export default function CreateTask() {
                     </>
                   )}
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={handleCancel}
@@ -317,11 +359,15 @@ export default function CreateTask() {
 
           {/* Tips Card */}
           <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-white mb-3">💡 Quick Tips</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">
+              💡 Quick Tips
+            </h3>
             <ul className="space-y-2 text-sm text-gray-400">
               <li className="flex items-start gap-2">
                 <span className="text-[#928dab] mt-1">•</span>
-                <span>Use clear, action-oriented titles for better task management</span>
+                <span>
+                  Use clear, action-oriented titles for better task management
+                </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-[#928dab] mt-1">•</span>
@@ -329,11 +375,16 @@ export default function CreateTask() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-[#928dab] mt-1">•</span>
-                <span>Prioritize urgent tasks to stay on top of your workload</span>
+                <span>
+                  Prioritize urgent tasks to stay on top of your workload
+                </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-[#928dab] mt-1">•</span>
-                <span>Add detailed descriptions to provide context for future reference</span>
+                <span>
+                  Add detailed descriptions to provide context for future
+                  reference
+                </span>
               </li>
             </ul>
           </div>

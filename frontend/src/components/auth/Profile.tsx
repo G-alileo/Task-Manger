@@ -236,11 +236,15 @@ export default function Profile() {
                       First Name
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <User
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+                        aria-hidden="true"
+                      />
                       <input
                         type="text"
                         id="first_name"
                         name="first_name"
+                        autoComplete="given-name"
                         value={formData.first_name}
                         onChange={handleChange}
                         disabled={!isEditing}
@@ -261,11 +265,15 @@ export default function Profile() {
                       Last Name
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <User
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+                        aria-hidden="true"
+                      />
                       <input
                         type="text"
                         id="last_name"
                         name="last_name"
+                        autoComplete="family-name"
                         value={formData.last_name}
                         onChange={handleChange}
                         disabled={!isEditing}
@@ -288,12 +296,18 @@ export default function Profile() {
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <Mail
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+                      aria-hidden="true"
+                    />
                     <input
                       type="email"
                       id="email"
+                      name="email"
+                      autoComplete="email"
                       value={user.email}
                       disabled
+                      aria-readonly="true"
                       className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg 
                                text-gray-400 cursor-not-allowed opacity-50"
                     />
@@ -312,11 +326,15 @@ export default function Profile() {
                     Username
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <User
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+                      aria-hidden="true"
+                    />
                     <input
                       type="text"
                       id="username"
                       name="username"
+                      autoComplete="username"
                       value={formData.username}
                       onChange={handleChange}
                       disabled={!isEditing}

@@ -219,7 +219,7 @@ export default function Register() {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
                 className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#928dab] to-[#6b668c] flex items-center justify-center shadow-lg shadow-purple-500/30"
               >
                 <UserPlus className="text-white" size={28} />
@@ -245,7 +245,7 @@ export default function Register() {
             {/* General Error Message */}
             <AlertMessage
               type="error"
-              message={generalError?.message || ''}
+              message={generalError?.message || ""}
               show={!!generalError}
               className="mb-6"
             />
@@ -265,9 +265,9 @@ export default function Register() {
                   required
                   autoComplete="given-name"
                   onChange={handleChange}
-                  onBlur={() => handleBlur('first_name')}
-                  hasError={validation.hasFieldError('first_name')}
-                  errorMessage={validation.getFieldError('first_name')}
+                  onBlur={() => handleBlur("first_name")}
+                  hasError={validation.hasFieldError("first_name")}
+                  errorMessage={validation.getFieldError("first_name")}
                 />
 
                 <FormInput
@@ -281,9 +281,9 @@ export default function Register() {
                   required
                   autoComplete="family-name"
                   onChange={handleChange}
-                  onBlur={() => handleBlur('last_name')}
-                  hasError={validation.hasFieldError('last_name')}
-                  errorMessage={validation.getFieldError('last_name')}
+                  onBlur={() => handleBlur("last_name")}
+                  hasError={validation.hasFieldError("last_name")}
+                  errorMessage={validation.getFieldError("last_name")}
                 />
               </div>
 
@@ -299,9 +299,9 @@ export default function Register() {
                 required
                 autoComplete="email"
                 onChange={handleChange}
-                onBlur={() => handleBlur('email')}
-                hasError={validation.hasFieldError('email')}
-                errorMessage={validation.getFieldError('email')}
+                onBlur={() => handleBlur("email")}
+                hasError={validation.hasFieldError("email")}
+                errorMessage={validation.getFieldError("email")}
               />
 
               {/* Username Field */}
@@ -316,12 +316,12 @@ export default function Register() {
                 required
                 autoComplete="username"
                 onChange={handleChange}
-                onBlur={() => handleBlur('username')}
-                hasError={validation.hasFieldError('username')}
-                errorMessage={validation.getFieldError('username')}
+                onBlur={() => handleBlur("username")}
+                hasError={validation.hasFieldError("username")}
+                errorMessage={validation.getFieldError("username")}
                 helperText={
-                  !validation.hasFieldError('username') && formData.username
-                    ? 'Use letters, numbers, underscores, or hyphens (no spaces)'
+                  !validation.hasFieldError("username") && formData.username
+                    ? "Use letters, numbers, underscores, or hyphens (no spaces)"
                     : undefined
                 }
               />
@@ -339,9 +339,9 @@ export default function Register() {
                   required
                   autoComplete="new-password"
                   onChange={handleChange}
-                  onBlur={() => handleBlur('password')}
-                  hasError={validation.hasFieldError('password')}
-                  errorMessage={validation.getFieldError('password')}
+                  onBlur={() => handleBlur("password")}
+                  hasError={validation.hasFieldError("password")}
+                  errorMessage={validation.getFieldError("password")}
                 />
 
                 {/* Password Strength Indicator */}
@@ -358,15 +358,19 @@ export default function Register() {
                   htmlFor="password_confirm"
                   className="block text-sm font-medium text-gray-300 mb-2"
                 >
-                  Confirm Password <span className="text-red-400">*</span>
+                  Confirm Password{" "}
+                  <span className="text-red-400" aria-label="required">
+                    *
+                  </span>
                 </label>
                 <div className="relative group">
                   <Lock
                     className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors w-5 h-5 ${
-                      validation.hasFieldError('password_confirm')
-                        ? 'text-red-400'
-                        : 'text-gray-400 group-focus-within:text-[#928dab]'
+                      validation.hasFieldError("password_confirm")
+                        ? "text-red-400"
+                        : "text-gray-400 group-focus-within:text-[#928dab]"
                     }`}
+                    aria-hidden="true"
                   />
                   <input
                     type="password"
@@ -374,16 +378,21 @@ export default function Register() {
                     name="password_confirm"
                     value={formData.password_confirm}
                     onChange={handleChange}
-                    onBlur={() => handleBlur('password_confirm')}
+                    onBlur={() => handleBlur("password_confirm")}
                     autoComplete="new-password"
                     aria-required="true"
-                    aria-invalid={validation.hasFieldError('password_confirm')}
+                    aria-invalid={validation.hasFieldError("password_confirm")}
+                    aria-describedby={
+                      validation.hasFieldError("password_confirm")
+                        ? "password_confirm-error"
+                        : undefined
+                    }
                     className={`w-full pl-12 pr-12 py-3.5 bg-white/5 border rounded-xl 
                              text-white placeholder-gray-500 focus:outline-none 
                              focus:ring-2 transition-all hover:bg-white/[0.07] ${
-                               validation.hasFieldError('password_confirm')
-                                 ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20'
-                                 : 'border-white/10 focus:border-[#928dab]/50 focus:ring-[#928dab]/20'
+                               validation.hasFieldError("password_confirm")
+                                 ? "border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20"
+                                 : "border-white/10 focus:border-[#928dab]/50 focus:ring-[#928dab]/20"
                              }`}
                     placeholder="••••••••"
                   />
@@ -395,9 +404,14 @@ export default function Register() {
                     />
                   )}
                 </div>
-                {validation.hasFieldError('password_confirm') && (
-                  <p className="mt-1.5 text-xs text-red-400">
-                    {validation.getFieldError('password_confirm')}
+                {validation.hasFieldError("password_confirm") && (
+                  <p
+                    id="password_confirm-error"
+                    className="mt-1.5 text-xs text-red-400"
+                    role="alert"
+                    aria-live="polite"
+                  >
+                    {validation.getFieldError("password_confirm")}
                   </p>
                 )}
               </div>
@@ -416,7 +430,10 @@ export default function Register() {
               >
                 {loading ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" aria-hidden="true" />
+                    <Loader
+                      className="w-5 h-5 animate-spin"
+                      aria-hidden="true"
+                    />
                     <span>Creating account...</span>
                   </>
                 ) : success ? (
@@ -436,7 +453,7 @@ export default function Register() {
             {/* Footer Links */}
             <div className="mt-6 text-center">
               <p className="text-gray-400 text-sm">
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <Link
                   to="/login"
                   className="text-[#928dab] hover:text-[#6b668c] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#928dab]/50 rounded"
@@ -455,14 +472,14 @@ export default function Register() {
           transition={{ delay: 0.5 }}
           className="mt-6 text-center text-gray-400 text-xs px-4"
         >
-          By creating an account, you agree to our{' '}
+          By creating an account, you agree to our{" "}
           <a
             href="/terms"
             className="text-[#928dab] hover:text-[#6b668c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#928dab]/50 rounded"
           >
             Terms of Service
-          </a>{' '}
-          and{' '}
+          </a>{" "}
+          and{" "}
           <a
             href="/privacy"
             className="text-[#928dab] hover:text-[#6b668c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#928dab]/50 rounded"

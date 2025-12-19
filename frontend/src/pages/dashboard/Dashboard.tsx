@@ -799,10 +799,14 @@ function SearchModal({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-3 mb-4">
-            <Search size={20} className="text-gray-400" />
+            <Search size={20} className="text-gray-400" aria-hidden="true" />
             <input
               type="text"
+              id="task-search"
+              name="task-search"
               autoFocus
+              autoComplete="off"
+              aria-label="Search tasks by title or description"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tasks by title or description..."
@@ -811,6 +815,7 @@ function SearchModal({
             <button
               onClick={onClose}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              aria-label="Close search"
             >
               <X size={20} className="text-gray-400" />
             </button>
@@ -1101,12 +1106,22 @@ function CreateTaskModal({
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Title *
+              <label
+                htmlFor="task-title"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
+                Title{" "}
+                <span className="text-red-400" aria-label="required">
+                  *
+                </span>
               </label>
               <input
                 type="text"
+                id="task-title"
+                name="title"
+                autoComplete="off"
                 required
+                aria-required="true"
                 value={formData.title}
                 onChange={(e) =>
                   setFormData({ ...formData, title: e.target.value })
@@ -1117,10 +1132,16 @@ function CreateTaskModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label
+                htmlFor="task-description"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
                 Description
               </label>
               <textarea
+                id="task-description"
+                name="description"
+                autoComplete="off"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
@@ -1133,11 +1154,16 @@ function CreateTaskModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  htmlFor="task-priority"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
                   Priority
                 </label>
                 <div className="relative">
                   <select
+                    id="task-priority"
+                    name="priority"
                     value={formData.priority}
                     onChange={(e) =>
                       setFormData({
@@ -1170,11 +1196,16 @@ function CreateTaskModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  htmlFor="task-due-date"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
                   Due Date
                 </label>
                 <input
                   type="date"
+                  id="task-due-date"
+                  name="due_date"
                   value={formData.due_date}
                   onChange={(e) =>
                     setFormData({ ...formData, due_date: e.target.value })

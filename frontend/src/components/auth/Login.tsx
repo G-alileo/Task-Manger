@@ -85,11 +85,14 @@ export default function Login() {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
+                role="alert"
+                aria-live="assertive"
                 className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3"
               >
                 <AlertCircle
                   className="text-red-400 flex-shrink-0 mt-0.5"
                   size={18}
+                  aria-hidden="true"
                 />
                 <p className="text-sm text-red-300 flex-1">
                   {typeof error === "string"
@@ -107,17 +110,26 @@ export default function Login() {
                   htmlFor="email"
                   className="block text-sm font-medium text-gray-300 mb-2"
                 >
-                  Email Address
+                  Email Address{" "}
+                  <span className="text-red-400" aria-label="required">
+                    *
+                  </span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail className="text-gray-500" size={18} />
+                    <Mail
+                      className="text-gray-500"
+                      size={18}
+                      aria-hidden="true"
+                    />
                   </div>
                   <input
                     id="email"
                     name="email"
                     type="email"
                     required
+                    autoComplete="email"
+                    aria-required="true"
                     value={formData.email}
                     onChange={handleChange}
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#928dab] focus:ring-1 focus:ring-[#928dab]/50 transition-all duration-300"
@@ -132,17 +144,26 @@ export default function Login() {
                   htmlFor="password"
                   className="block text-sm font-medium text-gray-300 mb-2"
                 >
-                  Password
+                  Password{" "}
+                  <span className="text-red-400" aria-label="required">
+                    *
+                  </span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="text-gray-500" size={18} />
+                    <Lock
+                      className="text-gray-500"
+                      size={18}
+                      aria-hidden="true"
+                    />
                   </div>
                   <input
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
                     required
+                    autoComplete="current-password"
+                    aria-required="true"
                     value={formData.password}
                     onChange={handleChange}
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#928dab] focus:ring-1 focus:ring-[#928dab]/50 transition-all duration-300"
@@ -152,6 +173,9 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     <span className="text-xs font-medium">
                       {showPassword ? "Hide" : "Show"}
@@ -165,6 +189,9 @@ export default function Login() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
+                    id="remember"
+                    name="remember"
+                    aria-label="Remember me"
                     className="w-4 h-4 rounded border-gray-600 bg-white/5 text-[#928dab] focus:ring-[#928dab]/50"
                   />
                   <span className="text-gray-400">Remember me</span>
