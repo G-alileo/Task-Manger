@@ -90,13 +90,48 @@ class Task(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'status']),
-            models.Index(fields=['user', 'priority']),
+            # Single field indexes
+            models.Index(fields=['user']),
+            models.Index(fields=['status']),
+            models.Index(fields=['priority']),
             models.Index(fields=['due_date']),
             models.Index(fields=['-created_at']),
+            
+            # Composite indexes for common query patterns
+            models.Index(fields=['user', 'status'], name='task_user_status_idx'),
+            models.Index(fields=['user', 'priority'], name='task_user_priority_idx'),
+            models.Index(fields=['user', '-created_at'], name='task_user_created_idx'),
+            models.Index(fields=['user', 'due_date'], name='task_user_due_idx'),
+            
+            # Composite index for overdue task queries
+            models.Index(fields=['status', 'due_date'], name='task_status_due_idx'),
+            
+            # Covering index for list queries (includes commonly selected fields)
+            models.Index(
+                fields=['user', 'status', 'priority', '-created_at'],
+                name='task_list_covering_idx'
+            ),
+            
+            # Index for completed tasks with timestamp
+            models.Index(
+                fields=['user', 'status', 'completed_at'],
+                name='task_completed_idx'
+            ),
         ]
         verbose_name = 'Task'
         verbose_name_plural = 'Tasks'
+        
+        # Database-level constraints
+        constraints = [
+            # Ensure completed_at is set only when status is completed
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status='completed', completed_at__isnull=False) |
+                    models.Q(~models.Q(status='completed'), completed_at__isnull=True)
+                ),
+                name='task_completed_at_status_constraint'
+            ),
+        ]
     
     def __str__(self) -> str:
         """String representation of the task"""

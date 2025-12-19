@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
+from apps.core.exceptions import AuthenticationFailedException, ValidationException
 from .models import User
 from .serializers import (
     RegisterSerializer,
@@ -23,6 +24,7 @@ from .serializers import (
     UserSerializer,
     ProfileSerializer
 )
+from .services import UserService
 
 # Setup logger
 logger = logging.getLogger('apps.users')
@@ -95,7 +97,7 @@ class RegisterView(APIView):
     )
     def post(self, request: Any) -> Response:
         """
-        Handle POST request for user registration.
+        Handle POST request for user registration using service layer.
         
         Args:
             request: HTTP request containing registration data
@@ -103,14 +105,17 @@ class RegisterView(APIView):
         Returns:
             Response: JSON response with created user or validation errors
         """
-        serializer = RegisterSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            user = serializer.save()
+        try:
+            serializer = RegisterSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Use service layer for registration with transaction safety
+            user = UserService.register_user(serializer.validated_data)
+            
+            # Serialize response
             user_data = UserSerializer(user).data
             
-            # Log successful registration
-            logger.info(f"New user registered: {user.email} (ID: {user.id}) from IP: {request.META.get('REMOTE_ADDR')}")
+            logger.info(f"User registered: {user.email} (ID: {user.id}) from IP: {request.META.get('REMOTE_ADDR')}")
             
             return Response(
                 {
@@ -120,18 +125,12 @@ class RegisterView(APIView):
                 },
                 status=status.HTTP_201_CREATED
             )
-        
-        # Log failed registration attempt
-        logger.warning(f"Failed registration attempt from IP: {request.META.get('REMOTE_ADDR')}, Errors: {serializer.errors}")
-        
-        return Response(
-            {
-                'status': 'error',
-                'message': 'Validation failed',
-                'errors': serializer.errors
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            
+        except ValidationException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected registration error: {str(e)}", exc_info=True)
+            raise ValidationException("Registration failed")
 
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
@@ -196,7 +195,7 @@ class LoginView(APIView):
     )
     def post(self, request: Any) -> Response:
         """
-        Handle POST request for user login.
+        Handle POST request for user login using service layer.
         
         Args:
             request: HTTP request containing login credentials
@@ -204,17 +203,23 @@ class LoginView(APIView):
         Returns:
             Response: JSON response with user data and JWT tokens or error
         """
-        serializer = LoginSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            validated_data = serializer.validated_data
-            user = validated_data['user']
-            tokens = validated_data['tokens']
+        try:
+            email = request.data.get('email', '').lower()
+            password = request.data.get('password', '')
             
+            if not email or not password:
+                raise ValidationException("Email and password are required")
+            
+            # Use service layer for authentication
+            result = UserService.authenticate_user(email, password)
+            
+            user = result['user']
+            tokens = result['tokens']
+            
+            # Serialize user data
             user_data = UserSerializer(user).data
             
-            # Log successful login
-            logger.info(f"User logged in: {user.email} (ID: {user.id}) from IP: {request.META.get('REMOTE_ADDR')}, User-Agent: {request.META.get('HTTP_USER_AGENT', 'Unknown')}")
+            logger.info(f"User logged in: {user.email} (ID: {user.id}) from IP: {request.META.get('REMOTE_ADDR')}")
             
             return Response(
                 {
@@ -227,19 +232,16 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-        
-        # Log failed login attempt
-        email = request.data.get('email', 'Unknown')
-        logger.warning(f"Failed login attempt for email: {email} from IP: {request.META.get('REMOTE_ADDR')}")
-        
-        return Response(
-            {
-                'status': 'error',
-                'message': 'Authentication failed',
-                'errors': serializer.errors
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            
+        except AuthenticationFailedException as e:
+            logger.warning(f"Failed login: {request.data.get('email')} from IP: {request.META.get('REMOTE_ADDR')}")
+            return Response(
+                {'status': 'error', 'message': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Unexpected login error: {str(e)}", exc_info=True)
+            raise ValidationException("Login failed")
 
 
 class ProfileView(APIView):
@@ -299,16 +301,20 @@ class ProfileView(APIView):
         Returns:
             Response: JSON response with user profile data
         """
-        user = request.user
-        serializer = UserSerializer(user)
-        
-        return Response(
-            {
-                'status': 'success',
-                'data': serializer.data
-            },
-            status=status.HTTP_200_OK
-        )
+        try:
+            user = request.user
+            serializer = UserSerializer(user)
+            
+            return Response(
+                {
+                    'status': 'success',
+                    'data': serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving profile: {str(e)}", exc_info=True)
+            raise ValidationException("Failed to retrieve profile")
     
     @extend_schema(
         tags=['Users'],
@@ -347,7 +353,7 @@ class ProfileView(APIView):
     )
     def put(self, request: Any) -> Response:
         """
-        Update the current user's profile (full update).
+        Update the current user's profile (full update) using service layer.
         
         Args:
             request: HTTP request with profile update data
@@ -355,15 +361,18 @@ class ProfileView(APIView):
         Returns:
             Response: JSON response with updated user profile
         """
-        user = request.user
-        serializer = ProfileSerializer(user, data=request.data, partial=False)
-        
-        if serializer.is_valid():
-            serializer.save()
-            user_data = UserSerializer(user).data
+        try:
+            user = request.user
+            serializer = ProfileSerializer(data=request.data, partial=False)
+            serializer.is_valid(raise_exception=True)
             
-            # Log profile update
-            logger.info(f"Profile updated (PUT) for user: {user.email} (ID: {user.id}) from IP: {request.META.get('REMOTE_ADDR')}")
+            # Use service layer for update with transaction safety
+            updated_user = UserService.update_profile(user, serializer.validated_data)
+            
+            # Serialize response
+            user_data = UserSerializer(updated_user).data
+            
+            logger.info(f"Profile updated for user {user.id}")
             
             return Response(
                 {
@@ -373,15 +382,12 @@ class ProfileView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-        
-        return Response(
-            {
-                'status': 'error',
-                'message': 'Validation failed',
-                'errors': serializer.errors
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            
+        except ValidationException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected profile update error: {str(e)}", exc_info=True)
+            raise ValidationException("Profile update failed")
     
     @extend_schema(
         tags=['Users'],
@@ -399,7 +405,7 @@ class ProfileView(APIView):
     )
     def patch(self, request: Any) -> Response:
         """
-        Partially update the current user's profile.
+        Partially update the current user's profile using service layer.
         
         Args:
             request: HTTP request with partial profile update data
@@ -407,12 +413,18 @@ class ProfileView(APIView):
         Returns:
             Response: JSON response with updated user profile
         """
-        user = request.user
-        serializer = ProfileSerializer(user, data=request.data, partial=True)
-        
-        if serializer.is_valid():
-            serializer.save()
-            user_data = UserSerializer(user).data
+        try:
+            user = request.user
+            serializer = ProfileSerializer(data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            
+            # Use service layer for update with transaction safety
+            updated_user = UserService.update_profile(user, serializer.validated_data)
+            
+            # Serialize response
+            user_data = UserSerializer(updated_user).data
+            
+            logger.info(f"Profile partially updated for user {user.id}")
             
             return Response(
                 {
@@ -422,15 +434,12 @@ class ProfileView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-        
-        return Response(
-            {
-                'status': 'error',
-                'message': 'Validation failed',
-                'errors': serializer.errors
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            
+        except ValidationException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected profile update error: {str(e)}", exc_info=True)
+            raise ValidationException("Profile update failed")
 
 
 class UserListView(generics.ListAPIView):
@@ -443,9 +452,15 @@ class UserListView(generics.ListAPIView):
     Permissions: Admin users only
     """
     
-    queryset = User.objects.all().order_by('-created_at')
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
+    
+    def get_queryset(self):
+        """Return optimized user queryset with only needed fields"""
+        return User.objects.all().order_by('-created_at').only(
+            'id', 'email', 'username', 'first_name', 'last_name',
+            'is_active', 'is_staff', 'created_at', 'updated_at'
+        )
     
     @extend_schema(
         tags=['Users'],

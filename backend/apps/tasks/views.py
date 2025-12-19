@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
 
+from apps.core.exceptions import ResourceNotFoundException, ValidationException
 from .models import Task
 from .serializers import (
     TaskSerializer,
@@ -22,6 +23,7 @@ from .serializers import (
     TaskUpdateSerializer,
     TaskStatsSerializer
 )
+from .services import TaskService
 
 # Setup logger
 logger = logging.getLogger('apps.tasks')
@@ -52,33 +54,31 @@ class TaskListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         """
         Return tasks for the authenticated user with optional filtering.
+        Optimized with select_related to prevent N+1 queries.
         
         Query params:
         - status: Filter by status (todo, in_progress, completed, cancelled)
         - priority: Filter by priority (low, medium, high, urgent)
         - overdue: Filter overdue tasks (true/false)
         """
-        queryset = Task.objects.filter(user=self.request.user)
-        
-        # Filter by status
-        status_param = self.request.query_params.get('status')
-        if status_param:
-            queryset = queryset.filter(status=status_param)
-        
-        # Filter by priority
-        priority_param = self.request.query_params.get('priority')
-        if priority_param:
-            queryset = queryset.filter(priority=priority_param)
-        
-        # Filter overdue tasks
-        overdue_param = self.request.query_params.get('overdue')
-        if overdue_param and overdue_param.lower() == 'true':
-            queryset = queryset.filter(
-                due_date__lt=timezone.now(),
-                status__in=[Task.Status.TODO, Task.Status.IN_PROGRESS]
+        try:
+            status_param = self.request.query_params.get('status')
+            priority_param = self.request.query_params.get('priority')
+            overdue_param = self.request.query_params.get('overdue', '').lower() == 'true'
+            
+            # Use service layer for filtering with query optimization
+            queryset = TaskService.get_user_tasks(
+                user=self.request.user,
+                status=status_param,
+                priority=priority_param,
+                overdue=overdue_param if overdue_param else None
             )
-        
-        return queryset
+            
+            return queryset
+            
+        except Exception as e:
+            logger.error(f"Error fetching tasks for user {self.request.user.id}: {str(e)}", exc_info=True)
+            raise ValidationException("Failed to retrieve tasks")
     
     @extend_schema(
         tags=['Tasks'],
@@ -111,9 +111,32 @@ class TaskListCreateView(generics.ListCreateAPIView):
         }
     )
     def post(self, request, *args, **kwargs):
-        """Handle POST request for creating tasks"""
-        logger.info(f"User {request.user.id} creating new task")
-        return super().post(request, *args, **kwargs)
+        """Handle POST request for creating tasks using service layer"""
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Use service layer for creation with transaction safety
+            task = TaskService.create_task(
+                user=request.user,
+                validated_data=serializer.validated_data
+            )
+            
+            # Serialize response
+            response_serializer = TaskSerializer(task)
+            
+            logger.info(f"User {request.user.id} created task {task.id}")
+            
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+            
+        except ValidationException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error creating task: {str(e)}", exc_info=True)
+            raise ValidationException("Failed to create task")
 
 
 class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -136,8 +159,16 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
         return TaskSerializer
     
     def get_queryset(self):
-        """Return tasks owned by the authenticated user"""
-        return Task.objects.filter(user=self.request.user)
+        """Return tasks owned by the authenticated user with optimizations"""
+        return Task.objects.filter(user=self.request.user).select_related('user')
+    
+    def get_object(self):
+        """Get object with proper error handling"""
+        try:
+            return super().get_object()
+        except Task.DoesNotExist:
+            logger.warning(f"Task not found for user {self.request.user.id}")
+            raise ResourceNotFoundException("Task not found")
     
     @extend_schema(
         tags=['Tasks'],
@@ -181,9 +212,30 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
         }
     )
     def patch(self, request, *args, **kwargs):
-        """Handle PATCH request for partial task update"""
-        logger.info(f"User {request.user.id} partially updating task {kwargs.get('pk')}")
-        return super().patch(request, *args, **kwargs)
+        """Handle PATCH request using service layer"""
+        try:
+            task = self.get_object()
+            serializer = self.get_serializer(task, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            
+            # Use service layer for update with transaction safety
+            updated_task = TaskService.update_task(
+                task=task,
+                validated_data=serializer.validated_data
+            )
+            
+            # Serialize response
+            response_serializer = TaskSerializer(updated_task)
+            
+            logger.info(f"User {request.user.id} updated task {task.id}")
+            
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+            
+        except ValidationException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error updating task: {str(e)}", exc_info=True)
+            raise ValidationException("Failed to update task")
     
     @extend_schema(
         tags=['Tasks'],
@@ -195,9 +247,21 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
         }
     )
     def delete(self, request, *args, **kwargs):
-        """Handle DELETE request for task deletion"""
-        logger.info(f"User {request.user.id} deleting task {kwargs.get('pk')}")
-        return super().delete(request, *args, **kwargs)
+        """Handle DELETE request using service layer"""
+        try:
+            task = self.get_object()
+            task_id = task.id
+            
+            # Use service layer for deletion with transaction safety
+            TaskService.delete_task(task)
+            
+            logger.info(f"User {request.user.id} deleted task {task_id}")
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except Exception as e:
+            logger.error(f"Error deleting task: {str(e)}", exc_info=True)
+            raise ValidationException("Failed to delete task")
 
 
 class TaskStatsView(APIView):
@@ -215,42 +279,32 @@ class TaskStatsView(APIView):
     @extend_schema(
         tags=['Tasks'],
         summary='Get task statistics',
-        description='Get statistics about user tasks including counts by status, priority, and overdue tasks.',
+        description='Get cached statistics about user tasks including counts by status, priority, and overdue tasks.',
         responses={
             200: TaskStatsSerializer,
         }
     )
     def get(self, request: Any) -> Response:
         """
-        Handle GET request for task statistics.
+        Handle GET request for task statistics using cached service layer.
         
         Returns:
-            Response: Task statistics data
+            Response: Task statistics data (cached for 5 minutes)
         """
-        user = request.user
-        tasks = Task.objects.filter(user=user)
-        
-        # Calculate statistics
-        stats = {
-            'total': tasks.count(),
-            'todo': tasks.filter(status=Task.Status.TODO).count(),
-            'in_progress': tasks.filter(status=Task.Status.IN_PROGRESS).count(),
-            'completed': tasks.filter(status=Task.Status.COMPLETED).count(),
-            'cancelled': tasks.filter(status=Task.Status.CANCELLED).count(),
-            'overdue': tasks.filter(
-                due_date__lt=timezone.now(),
-                status__in=[Task.Status.TODO, Task.Status.IN_PROGRESS]
-            ).count(),
-            'high_priority': tasks.filter(priority=Task.Priority.HIGH).count(),
-            'urgent': tasks.filter(priority=Task.Priority.URGENT).count(),
-        }
-        
-        logger.info(f"User {user.id} retrieved task statistics")
-        
-        serializer = TaskStatsSerializer(data=stats)
-        serializer.is_valid()
-        
-        return Response({
-            'status': 'success',
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
+        try:
+            # Use service layer with caching (5-minute TTL)
+            stats = TaskService.get_task_statistics(request.user)
+            
+            serializer = TaskStatsSerializer(data=stats)
+            serializer.is_valid()
+            
+            logger.info(f"User {request.user.id} retrieved task statistics")
+            
+            return Response({
+                'status': 'success',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error retrieving stats for user {request.user.id}: {str(e)}", exc_info=True)
+            raise ValidationException("Failed to retrieve statistics")

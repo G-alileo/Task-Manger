@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django_ratelimit',
     'defender',
     # Local apps
+    'apps.core',
     'apps.users',
     'apps.tasks',
 ]
@@ -104,11 +105,14 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '3306'),
-        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
+        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),  # Connection pooling via persistent connections
+        'ATOMIC_REQUESTS': True,  # Wrap each request in a transaction
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
             'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', '10')),
+            'read_timeout': 30,
+            'write_timeout': 30,
         },
     }
 }
@@ -221,9 +225,16 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ],
-    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    'EXCEPTION_HANDLER': 'apps.core.exception_handler.custom_exception_handler',
     'DATE_INPUT_FORMATS': ['%Y-%m-%d'],
     'DATETIME_INPUT_FORMATS': ['%Y-%m-%d %H:%M:%S'],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '1000/hour',
+        'anon': '100/hour',
+    },
 }
 
 

@@ -214,9 +214,39 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = 'users'
         ordering = ['-created_at']
         indexes = [
-            # Composite index for common query patterns
+            # Single field indexes for lookups
+            models.Index(fields=['email'], name='user_email_idx'),
+            models.Index(fields=['username'], name='user_username_idx'),
+            models.Index(fields=['is_active'], name='user_active_idx'),
+            models.Index(fields=['-created_at'], name='user_created_idx'),
+            
+            # Composite indexes for common query patterns
             models.Index(fields=['email', 'is_active'], name='user_email_active_idx'),
             models.Index(fields=['username', 'is_active'], name='user_username_active_idx'),
+            
+            # Covering index for authentication queries
+            models.Index(
+                fields=['email', 'is_active', 'is_staff'],
+                name='user_auth_covering_idx'
+            ),
+            
+            # Index for staff/admin queries
+            models.Index(fields=['is_staff', 'is_active'], name='user_staff_active_idx'),
+            models.Index(fields=['is_superuser', 'is_active'], name='user_super_active_idx'),
+        ]
+        
+        # Database-level constraints
+        constraints = [
+            # Ensure email uniqueness (case-insensitive at DB level)
+            models.UniqueConstraint(
+                fields=['email'],
+                name='user_unique_email_constraint'
+            ),
+            # Ensure username uniqueness
+            models.UniqueConstraint(
+                fields=['username'],
+                name='user_unique_username_constraint'
+            ),
         ]
     
     def __str__(self) -> str:

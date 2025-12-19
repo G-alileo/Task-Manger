@@ -21,10 +21,17 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView
 )
+from apps.core.views import health_check, readiness_check, liveness_check, metrics_summary
 
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
+    
+    # Health & Monitoring Endpoints (no authentication required)
+    path('health/', health_check, name='health-check'),
+    path('ready/', readiness_check, name='readiness-check'),
+    path('alive/', liveness_check, name='liveness-check'),
+    path('metrics/', metrics_summary, name='metrics-summary'),
     
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
