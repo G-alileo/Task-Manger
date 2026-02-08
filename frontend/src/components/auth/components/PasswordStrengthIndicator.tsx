@@ -1,8 +1,4 @@
-/**
- * Password Strength Indicator Component
- * 
- * Visual feedback component showing password strength and requirements.
- */
+// Password Strength Indicator Component
 
 import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,25 +14,6 @@ export interface PasswordStrengthIndicatorProps {
   show: boolean;
 }
 
-/**
- * Displays password strength meter and requirement checklist
- * 
- * Features:
- * - Visual strength bar with 4 levels
- * - Color-coded feedback
- * - Requirement checklist with checkmarks
- * - Smooth animations
- * - Accessible markup
- * 
- * @example
- * ```tsx
- * <PasswordStrengthIndicator
- *   requirements={requirements}
- *   strength={strength}
- *   show={!!password}
- * />
- * ```
- */
 export const PasswordStrengthIndicator = memo<PasswordStrengthIndicatorProps>(
   ({ requirements, strength, show }) => {
     return (

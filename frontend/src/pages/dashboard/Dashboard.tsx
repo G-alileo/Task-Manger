@@ -1,15 +1,3 @@
-/**
- * Professional Task Management Dashboard
- * 
- * Features:
- * - Interactive task cards with quick actions
- * - Weekly/Monthly activity charts
- * - Task distribution visualization
- * - Real-time statistics
- * - Quick task creation modal
- * - Task completion trends
- */
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -105,7 +93,7 @@ export default function Dashboard() {
     }
   };
 
-  // Generate mock weekly data (replace with real API data when available)
+  // Generate mock weekly data (
   const weeklyData = [
     { day: "Mon", completed: 3, created: 5 },
     { day: "Tue", completed: 5, created: 4 },

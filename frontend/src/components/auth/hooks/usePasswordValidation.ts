@@ -20,17 +20,7 @@ export interface UsePasswordValidationResult {
   metCount: number;
 }
 
-/**
- * Validates password against requirements and calculates strength
- * 
- * @param password - The password to validate
- * @returns Validation results with requirements and strength
- * 
- * @example
- * ```tsx
- * const { requirements, strength, isValid } = usePasswordValidation(password);
- * ```
- */
+
 export function usePasswordValidation(password: string): UsePasswordValidationResult {
   const [requirements, setRequirements] = useState<PasswordRequirement[]>([]);
 

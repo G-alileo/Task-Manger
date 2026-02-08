@@ -3,16 +3,16 @@ import { motion } from 'framer-motion';
 import {
   User,
   Shield,
-  Mail,
-  Lock,
+  // Mail,
+  // Lock,
   Save,
   Check,
   Camera,
   Upload,
   Trash2,
   AlertCircle,
-  Eye,
-  EyeOff,
+  // Eye,
+  // EyeOff,
   LogOut
 } from 'lucide-react';
 import { Sidebar } from '../../components/Sidebar';

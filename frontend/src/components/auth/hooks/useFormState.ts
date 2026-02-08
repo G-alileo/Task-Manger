@@ -29,17 +29,6 @@ const INITIAL_FORM_DATA: RegisterFormData = {
   last_name: '',
 };
 
-/**
- * Manages form state with type-safe updates
- * 
- * @param initialData - Initial form data (optional)
- * @returns Form state and update functions
- * 
- * @example
- * ```tsx
- * const { formData, updateField, resetForm } = useFormState();
- * ```
- */
 export function useFormState(
   initialData: Partial<RegisterFormData> = {}
 ): UseFormStateResult {

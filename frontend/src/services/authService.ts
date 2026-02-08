@@ -1,8 +1,4 @@
-/**
- * Authentication Service
- * 
- * API calls for user registration, login, profile management, and logout.
- */
+ // API calls for user registration, login, profile management, and logout.
 
 import apiClient, { tokenManager } from './apiClient';
 

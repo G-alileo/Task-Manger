@@ -39,17 +39,7 @@ export interface UseFormValidationResult {
   reset: () => void;
 }
 
-/**
- * Provides comprehensive form validation with error management
- * 
- * @param options - Configuration options
- * @returns Validation state and helper functions
- * 
- * @example
- * ```tsx
- * const { errors, validateField, validateForm } = useFormValidation();
- * ```
- */
+
 export function useFormValidation(
   _options: UseFormValidationOptions = {}
 ): UseFormValidationResult {
