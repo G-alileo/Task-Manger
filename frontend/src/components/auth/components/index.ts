@@ -1,8 +1,4 @@
-/**
- * Authentication Components Export
- * 
- * Centralized export for all reusable authentication UI components.
- */
+ // Centralized export for all reusable authentication UI components.
 
 export { FormInput } from './FormInput';
 export type { FormInputProps } from './FormInput';

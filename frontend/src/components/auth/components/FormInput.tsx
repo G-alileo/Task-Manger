@@ -1,10 +1,3 @@
-/**
- * Form Input Component
- * 
- * Accessible, reusable form input with validation feedback and icons.
- * Supports text, email, and password input types.
- */
-
 import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, type LucideIcon } from 'lucide-react';
@@ -46,33 +39,6 @@ export interface FormInputProps {
   disabled?: boolean;
 }
 
-/**
- * Accessible form input component with validation feedback
- * 
- * Features:
- * - ARIA labels and error announcements
- * - Visual feedback for validation states
- * - Icon support with proper positioning
- * - Smooth animations for errors
- * - Focus management
- * 
- * @example
- * ```tsx
- * <FormInput
- *   id="email"
- *   name="email"
- *   type="email"
- *   label="Email Address"
- *   value={email}
- *   placeholder="you@example.com"
- *   icon={Mail}
- *   onChange={handleChange}
- *   onBlur={handleBlur}
- *   hasError={!!error}
- *   errorMessage={error}
- * />
- * ```
- */
 export const FormInput = memo<FormInputProps>(({
   id,
   name,

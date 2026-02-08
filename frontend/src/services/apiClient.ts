@@ -1,10 +1,3 @@
-/**
- * API Client Configuration
- * 
- * Axios instance configured for Django backend with JWT authentication,
- * automatic token refresh, and error handling.
- */
-
 import axios from 'axios';
 import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 

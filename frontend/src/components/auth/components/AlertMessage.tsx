@@ -1,9 +1,3 @@
-/**
- * Alert Message Component
- * 
- * Reusable alert component for success, error, warning, and info messages.
- */
-
 import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from 'lucide-react';
@@ -56,26 +50,7 @@ const alertConfig = {
   },
 };
 
-/**
- * Accessible alert message component with animation
- * 
- * Features:
- * - Multiple alert types (success, error, warning, info)
- * - Smooth entrance/exit animations
- * - Optional dismiss button
- * - ARIA live regions for screen readers
- * - Icon and color coding
- * 
- * @example
- * ```tsx
- * <AlertMessage
- *   type="success"
- *   message="Registration successful!"
- *   subtitle="Redirecting to your dashboard..."
- *   show={success}
- * />
- * ```
- */
+
 export const AlertMessage = memo<AlertMessageProps>(
   ({ type, message, subtitle, show, onDismiss, className = '' }) => {
     const config = alertConfig[type];
