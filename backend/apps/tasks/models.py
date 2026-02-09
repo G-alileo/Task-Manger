@@ -1,11 +1,15 @@
+"""
+This module contains the Task model with performance optimizations including
+efficient querying, caching, and proper indexing strategies.
+"""
+
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinLengthValidator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from functools import cached_property
-from typing import Optional
+from typing import Optional, List
 
 
 class TaskQuerySet(models.QuerySet):
@@ -28,19 +32,22 @@ class TaskQuerySet(models.QuerySet):
     
     def active(self):
         """
-        Get active tasks (not completed or cancelled).
+        Get active tasks (not completed, cancelled, or deleted).
         
         Returns:
-            QuerySet excluding completed and cancelled tasks
+            QuerySet excluding completed, cancelled, and deleted tasks
         """
-        return self.exclude(status__in=[
-            Task.Status.COMPLETED,
-            Task.Status.CANCELLED
-        ])
+        return self.filter(is_deleted=False).exclude(
+            status__in=[Task.Status.COMPLETED, Task.Status.CANCELLED]
+        )
+    
+    def not_deleted(self):
+        """Get tasks that are not soft-deleted."""
+        return self.filter(is_deleted=False)
     
     def completed(self):
         """Get only completed tasks."""
-        return self.filter(status=Task.Status.COMPLETED)
+        return self.filter(status=Task.Status.COMPLETED, is_deleted=False)
     
     def overdue(self):
         """
@@ -51,9 +58,11 @@ class TaskQuerySet(models.QuerySet):
         Returns:
             QuerySet of non-completed tasks past their due date
         """
+        now = timezone.now()
         return self.filter(
-            due_date__lt=timezone.now()
-        ).exclude(status=Task.Status.COMPLETED)
+            due_date__lt=now,
+            is_deleted=False
+        ).exclude(status__in=[Task.Status.COMPLETED, Task.Status.CANCELLED])
     
     def due_soon(self, hours=24):
         """
@@ -66,11 +75,13 @@ class TaskQuerySet(models.QuerySet):
             QuerySet of tasks due within the time window
         """
         from datetime import timedelta
-        cutoff = timezone.now() + timedelta(hours=hours)
+        now = timezone.now()
+        cutoff = now + timedelta(hours=hours)
         return self.filter(
             due_date__lte=cutoff,
-            due_date__gte=timezone.now()
-        ).exclude(status=Task.Status.COMPLETED)
+            due_date__gte=now,
+            is_deleted=False
+        ).exclude(status__in=[Task.Status.COMPLETED, Task.Status.CANCELLED])
     
     def by_priority(self):
         """
@@ -100,6 +111,18 @@ class TaskQuerySet(models.QuerySet):
         """
         return self.select_related('user')
     
+    def optimized_list(self):
+        """
+        Optimized queryset for list views.
+        
+        Returns:
+            QuerySet with select_related and only() for minimal data
+        """
+        return self.select_related('user').only(
+            'id', 'user_id', 'title', 'status', 'priority',
+            'due_date', 'created_at', 'updated_at'
+        )
+    
     def statistics(self):
         """
         Get task statistics in a single query.
@@ -108,6 +131,8 @@ class TaskQuerySet(models.QuerySet):
             Dict with counts by status and priority
         """
         from django.db.models import Count, Q
+        
+        now = timezone.now()
         
         return self.aggregate(
             total=Count('id'),
@@ -120,7 +145,7 @@ class TaskQuerySet(models.QuerySet):
             medium=Count('id', filter=Q(priority=Task.Priority.MEDIUM)),
             low=Count('id', filter=Q(priority=Task.Priority.LOW)),
             overdue=Count('id', filter=Q(
-                due_date__lt=timezone.now(),
+                due_date__lt=now,
                 status__in=[Task.Status.TODO, Task.Status.IN_PROGRESS]
             ))
         )
@@ -134,8 +159,8 @@ class TaskManager(models.Manager):
     """
     
     def get_queryset(self):
-        """Return custom QuerySet."""
-        return TaskQuerySet(self.model, using=self._db)
+        """Return custom QuerySet with not_deleted filter by default."""
+        return TaskQuerySet(self.model, using=self._db).not_deleted()
     
     def for_user(self, user):
         """Get tasks for specific user."""
@@ -161,7 +186,7 @@ class TaskManager(models.Manager):
         """Order by priority."""
         return self.get_queryset().by_priority()
     
-    def bulk_update_status(self, task_ids, new_status):
+    def bulk_update_status(self, task_ids: List[int], new_status: str) -> int:
         """
         Efficiently update status for multiple tasks.
         
@@ -172,34 +197,38 @@ class TaskManager(models.Manager):
         Returns:
             Number of tasks updated
         """
+        now = timezone.now()
         update_data = {
             'status': new_status,
-            'updated_at': timezone.now()
+            'updated_at': now
         }
         
         # Set completed_at if marking as completed
         if new_status == Task.Status.COMPLETED:
-            update_data['completed_at'] = timezone.now()
-        else:
+            update_data['completed_at'] = now
+        elif new_status != Task.Status.COMPLETED:
             update_data['completed_at'] = None
         
         return self.filter(id__in=task_ids).update(**update_data)
     
-    def bulk_complete(self, task_ids):
+    def bulk_complete(self, task_ids: List[int]) -> int:
         """Mark multiple tasks as completed."""
         return self.bulk_update_status(task_ids, Task.Status.COMPLETED)
     
-    def bulk_delete_tasks(self, task_ids):
+    def bulk_soft_delete(self, task_ids: List[int]) -> int:
         """
-        Bulk delete tasks.
+        Bulk soft delete tasks.
         
         Args:
-            task_ids: List of task IDs to delete
+            task_ids: List of task IDs to soft delete
             
         Returns:
-            Tuple of (number deleted, dict of deletions by type)
+            Number of tasks deleted
         """
-        return self.filter(id__in=task_ids).delete()
+        return self.filter(id__in=task_ids).update(
+            is_deleted=True,
+            deleted_at=timezone.now()
+        )
     
     def user_statistics(self, user):
         """
@@ -219,8 +248,7 @@ class Task(models.Model):
     Task model for managing user tasks.
     
     Each task belongs to a user and has a title, description, priority,
-    status, and optional due date.
-    
+    status, and optional due date. Supports soft deletion and tagging.
     """
     
     class Priority(models.TextChoices):
@@ -242,16 +270,18 @@ class Task(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='tasks',
-        db_index=True,  # Explicit for clarity
         help_text='User who owns this task'
     )
+    
     title = models.CharField(
         max_length=255,
         validators=[MinLengthValidator(3)],
         help_text='Task title (3-255 characters)'
     )
+    
     description = models.TextField(
         blank=True,
+        default='',
         help_text='Detailed task description (optional)'
     )
     
@@ -260,8 +290,10 @@ class Task(models.Model):
         max_length=20,
         choices=Status.choices,
         default=Status.TODO,
+        db_index=True,
         help_text='Current task status'
     )
+    
     priority = models.CharField(
         max_length=20,
         choices=Priority.choices,
@@ -273,8 +305,10 @@ class Task(models.Model):
     due_date = models.DateTimeField(
         null=True,
         blank=True,
+        db_index=True,
         help_text='Optional deadline for task completion'
     )
+    
     completed_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -284,18 +318,22 @@ class Task(models.Model):
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
+        db_index=True,
         help_text='Timestamp when task was created'
     )
+    
     updated_at = models.DateTimeField(
         auto_now=True,
         help_text='Timestamp of last update'
     )
     
-    # Optional: Soft delete support
+    # Soft delete support
     is_deleted = models.BooleanField(
         default=False,
+        db_index=True,
         help_text='Soft delete flag'
     )
+    
     deleted_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -306,60 +344,54 @@ class Task(models.Model):
     tags = models.CharField(
         max_length=500,
         blank=True,
+        default='',
         help_text='Comma-separated tags for categorization'
     )
     
     # Custom manager
     objects = TaskManager()
+    all_objects = models.Manager()  # Manager that includes deleted tasks
     
     class Meta:
         ordering = ['-created_at']
-
+        verbose_name = 'Task'
+        verbose_name_plural = 'Tasks'
+        
         indexes = [
-            # Primary list query: user's tasks by status and creation date
-            # Covers: Task.objects.for_user(user).filter(status=x).order_by('-created_at')
+            # Primary list query: user's active tasks by creation date
+            models.Index(
+                fields=['user', 'is_deleted', '-created_at'],
+                name='task_user_deleted_created'
+            ),
+            
+            # Status filtering per user
             models.Index(
                 fields=['user', 'status', '-created_at'],
                 name='task_user_status_created'
             ),
             
             # Priority filtering and sorting per user
-            # Covers: Task.objects.for_user(user).filter(priority=x)
             models.Index(
                 fields=['user', 'priority', '-created_at'],
                 name='task_user_priority_created'
             ),
             
             # Overdue task queries (status + due_date)
-            # Covers: Task.objects.filter(status__in=[...], due_date__lt=now())
             models.Index(
-                fields=['status', 'due_date'],
-                name='task_status_due'
+                fields=['status', 'due_date', 'is_deleted'],
+                name='task_status_due_deleted'
             ),
             
             # User's tasks by due date
-            # Covers: Task.objects.for_user(user).filter(due_date__range=[...])
             models.Index(
-                fields=['user', 'due_date'],
-                name='task_user_due'
-            ),
-            
-            # Soft delete queries
-            # Covers: Task.objects.filter(user=x, is_deleted=False)
-            models.Index(
-                fields=['user', 'is_deleted', '-created_at'],
-                name='task_user_deleted_created'
+                fields=['user', 'due_date', 'is_deleted'],
+                name='task_user_due_deleted'
             ),
         ]
-        
-        verbose_name = 'Task'
-        verbose_name_plural = 'Tasks'
         
         # Database-level constraints
         constraints = [
             # Ensure completed_at is set only when status is completed
-            # NOTE: Requires PostgreSQL 11+ or similar database with CHECK support
-            # SQLite 3.3.0+ also supports this
             models.CheckConstraint(
                 condition=(
                     models.Q(status='completed', completed_at__isnull=False) |
@@ -425,12 +457,12 @@ class Task(models.Model):
                 self.completed_at = timezone.now()
                 if update_fields:
                     update_fields = set(update_fields) | {'completed_at'}
-                    kwargs['update_fields'] = update_fields
+                    kwargs['update_fields'] = list(update_fields)
             elif self.status != self.Status.COMPLETED and self.completed_at:
                 self.completed_at = None
                 if update_fields:
                     update_fields = set(update_fields) | {'completed_at'}
-                    kwargs['update_fields'] = update_fields
+                    kwargs['update_fields'] = list(update_fields)
         
         super().save(*args, **kwargs)
     
@@ -440,9 +472,6 @@ class Task(models.Model):
     def is_overdue(self) -> bool:
         """
         Check if task is overdue.
-        
-        A task is overdue if it has a due date in the past and
-        is not completed.
         
         Returns:
             True if task is overdue, False otherwise
@@ -486,7 +515,7 @@ class Task(models.Model):
         return delta.days
     
     @property
-    def tag_list(self) -> list:
+    def tag_list(self) -> List[str]:
         """
         Get tags as a list.
         
@@ -499,7 +528,7 @@ class Task(models.Model):
     
     # Instance methods
     
-    def mark_completed(self, save=True):
+    def mark_completed(self, save: bool = True):
         """
         Mark task as completed.
         
@@ -515,7 +544,7 @@ class Task(models.Model):
             self.save(update_fields=['status', 'completed_at', 'updated_at'])
         return self
     
-    def mark_in_progress(self, save=True):
+    def mark_in_progress(self, save: bool = True):
         """
         Mark task as in progress.
         
@@ -526,11 +555,12 @@ class Task(models.Model):
             Self for method chaining
         """
         self.status = self.Status.IN_PROGRESS
+        self.completed_at = None
         if save:
-            self.save(update_fields=['status', 'updated_at'])
+            self.save(update_fields=['status', 'completed_at', 'updated_at'])
         return self
     
-    def mark_cancelled(self, save=True):
+    def mark_cancelled(self, save: bool = True):
         """
         Mark task as cancelled.
         
@@ -546,7 +576,7 @@ class Task(models.Model):
             self.save(update_fields=['status', 'completed_at', 'updated_at'])
         return self
     
-    def soft_delete(self, save=True):
+    def soft_delete(self, save: bool = True):
         """
         Soft delete the task.
         
@@ -562,7 +592,7 @@ class Task(models.Model):
             self.save(update_fields=['is_deleted', 'deleted_at', 'updated_at'])
         return self
     
-    def restore(self, save=True):
+    def restore(self, save: bool = True):
         """
         Restore a soft-deleted task.
         
@@ -578,7 +608,7 @@ class Task(models.Model):
             self.save(update_fields=['is_deleted', 'deleted_at', 'updated_at'])
         return self
     
-    def add_tag(self, tag: str, save=True):
+    def add_tag(self, tag: str, save: bool = True):
         """
         Add a tag to the task.
         
@@ -590,14 +620,15 @@ class Task(models.Model):
             Self for method chaining
         """
         current_tags = self.tag_list
-        if tag not in current_tags:
+        tag = tag.strip()
+        if tag and tag not in current_tags:
             current_tags.append(tag)
             self.tags = ', '.join(current_tags)
             if save:
                 self.save(update_fields=['tags', 'updated_at'])
         return self
     
-    def remove_tag(self, tag: str, save=True):
+    def remove_tag(self, tag: str, save: bool = True):
         """
         Remove a tag from the task.
         

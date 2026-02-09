@@ -1,8 +1,6 @@
 """
-URL configuration for task API endpoints.
-
 This module defines URL patterns for task CRUD operations,
-filtering, searching, and statistics endpoints.
+filtering, searching, statistics, and bulk operations.
 """
 
 from django.urls import path
@@ -10,7 +8,10 @@ from django.urls import path
 from .views import (
     TaskListCreateView,
     TaskDetailView,
-    TaskStatsView
+    TaskStatsView,
+    BulkTaskUpdateView,
+    BulkTaskDeleteView,
+    TaskDuplicateView
 )
 
 app_name = 'tasks'
@@ -22,4 +23,11 @@ urlpatterns = [
     
     # Statistics endpoint
     path('stats/', TaskStatsView.as_view(), name='task-stats'),
+    
+    # Bulk operations
+    path('bulk/update-status/', BulkTaskUpdateView.as_view(), name='task-bulk-update-status'),
+    path('bulk/delete/', BulkTaskDeleteView.as_view(), name='task-bulk-delete'),
+    
+    # Task actions
+    path('<int:pk>/duplicate/', TaskDuplicateView.as_view(), name='task-duplicate'),
 ]
