@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import quidLogo from '../assets/branding/images/task-manager-quid.png';
 
 type NavItem = {
   icon: React.ElementType;
@@ -117,7 +118,7 @@ export function Sidebar() {
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-lg p-2 border border-white/5">
               <img
-                src="/branding/quid.png"
+                src={quidLogo}
                 alt="Quid Logo"
                 className="w-full h-full object-contain"
               />
