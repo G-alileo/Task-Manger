@@ -1,8 +1,6 @@
 """
-User models for the task manager application.
-
 This module contains the custom User model and UserManager for handling
-user authentication and profile management.
+user authentication and profile management with performance optimizations.
 """
 
 from typing import Optional
@@ -19,7 +17,7 @@ class UserManager(BaseUserManager):
     Custom user manager for handling user creation operations.
     
     This manager provides methods for creating regular users and superusers
-    with email as the primary identifier instead of username.
+    with email as the primary identifier.
     """
 
     def create_user(
@@ -99,6 +97,14 @@ class UserManager(BaseUserManager):
             raise ValueError(_('Superuser must have is_superuser=True.'))
 
         return self.create_user(email, username, password, **extra_fields)
+    
+    def active_users(self):
+        """Return only active users."""
+        return self.filter(is_active=True)
+    
+    def staff_users(self):
+        """Return only staff users."""
+        return self.filter(is_staff=True, is_active=True)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -125,7 +131,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         _('email address'),
         max_length=255,
         unique=True,
-        db_index=True,  # Indexed for faster authentication queries
         validators=[EmailValidator()],
         help_text=_('Required. Used as the primary login identifier.')
     )
@@ -134,7 +139,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         _('username'),
         max_length=150,
         unique=True,
-        db_index=True,  # Indexed for faster lookups
         help_text=_('Required. 150 characters or fewer. Unique identifier.')
     )
     
@@ -143,6 +147,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         _('first name'),
         max_length=150,
         blank=True,
+        default='',  # Use default empty string instead of NULL
         help_text=_('Optional. User\'s first name.')
     )
     
@@ -150,6 +155,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         _('last name'),
         max_length=150,
         blank=True,
+        default='',  # Use default empty string instead of NULL
         help_text=_('Optional. User\'s last name.')
     )
     
@@ -157,14 +163,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         _('profile picture'),
         max_length=500,
         blank=True,
-        null=True,
-        help_text=_('Optional. URL to user\'s profile picture. Can be updated to ImageField for file uploads.')
+        default='',  # Use default empty string instead of NULL
+        help_text=_('Optional. URL to user\'s profile picture.')
     )
     
     bio = models.TextField(
         _('bio'),
         max_length=500,
         blank=True,
+        default='',  # Use default empty string instead of NULL
         help_text=_('Optional. Short biography or description about the user.')
     )
     
@@ -172,6 +179,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(
         _('active'),
         default=True,
+        db_index=True,  # Frequently filtered
         help_text=_(
             'Designates whether this user should be treated as active. '
             'Unselect this instead of deleting accounts.'
@@ -186,12 +194,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         )
     )
     
-    # Note: is_superuser is inherited from PermissionsMixin
-    
     # === Timestamp Fields ===
     created_at = models.DateTimeField(
         _('date joined'),
         default=timezone.now,
+        db_index=True,  # Frequently used for ordering
         help_text=_('Timestamp when the user account was created.')
     )
     
@@ -205,57 +212,29 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
     
     # === Authentication Configuration ===
-    USERNAME_FIELD = 'email'  # Use email for authentication
-    REQUIRED_FIELDS = ['username']  # Required when creating superuser via createsuperuser command
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
     
     class Meta:
         verbose_name = _('user')
         verbose_name_plural = _('users')
         db_table = 'users'
         ordering = ['-created_at']
+        
         indexes = [
-            # Single field indexes for lookups
-            models.Index(fields=['email'], name='user_email_idx'),
-            models.Index(fields=['username'], name='user_username_idx'),
+            # Primary lookup indexes (email and username already have unique constraints)
             models.Index(fields=['is_active'], name='user_active_idx'),
             models.Index(fields=['-created_at'], name='user_created_idx'),
             
             # Composite indexes for common query patterns
             models.Index(fields=['email', 'is_active'], name='user_email_active_idx'),
-            models.Index(fields=['username', 'is_active'], name='user_username_active_idx'),
-            
-            # Covering index for authentication queries
-            models.Index(
-                fields=['email', 'is_active', 'is_staff'],
-                name='user_auth_covering_idx'
-            ),
-            
-            # Index for staff/admin queries
             models.Index(fields=['is_staff', 'is_active'], name='user_staff_active_idx'),
-            models.Index(fields=['is_superuser', 'is_active'], name='user_super_active_idx'),
         ]
         
-        # Database-level constraints
-        constraints = [
-            # Ensure email uniqueness (case-insensitive at DB level)
-            models.UniqueConstraint(
-                fields=['email'],
-                name='user_unique_email_constraint'
-            ),
-            # Ensure username uniqueness
-            models.UniqueConstraint(
-                fields=['username'],
-                name='user_unique_username_constraint'
-            ),
-        ]
+
     
     def __str__(self) -> str:
-        """
-        String representation of the user.
-        
-        Returns:
-            str: User's email address
-        """
+        """String representation of the user."""
         return self.email
     
     def get_full_name(self) -> str:
@@ -265,8 +244,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         Returns:
             str: Full name or email if names are not set
         """
-        full_name = f'{self.first_name} {self.last_name}'.strip()
-        return full_name if full_name else self.email
+        if self.first_name or self.last_name:
+            return f'{self.first_name} {self.last_name}'.strip()
+        return self.email
     
     def get_short_name(self) -> str:
         """
@@ -275,8 +255,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         Returns:
             str: First name or username if first name is not set
         """
-        return self.first_name if self.first_name else self.username
+        return self.first_name or self.username
     
+    @property
     def has_profile_picture(self) -> bool:
         """
         Check if the user has a profile picture set.
@@ -285,3 +266,11 @@ class User(AbstractBaseUser, PermissionsMixin):
             bool: True if profile picture exists, False otherwise
         """
         return bool(self.profile_picture)
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to normalize email to lowercase.
+        """
+        if self.email:
+            self.email = self.email.lower()
+        super().save(*args, **kwargs)

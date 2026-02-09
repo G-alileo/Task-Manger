@@ -1,14 +1,11 @@
 """
-Serializers for the User API endpoints.
-
 This module contains serializers for user registration, authentication,
-profile management, and user data representation.
+profile management, and user data representation with performance optimizations.
 """
 
 from typing import Dict, Any
-from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -57,9 +54,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If email already exists or is invalid
         """
-        value = value.lower()
-        if User.objects.filter(email=value).exists():
+        value = value.lower().strip()
+        
+        # Use only() to fetch just the id field for existence check
+        if User.objects.filter(email=value).only('id').exists():
             raise serializers.ValidationError('A user with this email already exists.')
+        
         return value
     
     def validate_username(self, value: str) -> str:
@@ -75,8 +75,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If username already exists
         """
-        if User.objects.filter(username=value).exists():
+        value = value.strip()
+        
+        # Use only() to fetch just the id field for existence check
+        if User.objects.filter(username=value).only('id').exists():
             raise serializers.ValidationError('A user with this username already exists.')
+        
         return value
     
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
@@ -92,14 +96,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If passwords don't match or are weak
         """
-        if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({'password_confirm': 'Passwords do not match.'})
+        password = attrs.get('password')
+        password_confirm = attrs.get('password_confirm')
+        
+        # Check password match first (faster check)
+        if password != password_confirm:
+            raise serializers.ValidationError({
+                'password_confirm': 'Passwords do not match.'
+            })
         
         # Validate password strength using Django's validators
         try:
-            validate_password(attrs['password'])
-        except ValidationError as e:
-            raise serializers.ValidationError({'password': list(e.messages)})
+            validate_password(password)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({
+                'password': list(e.messages)
+            })
         
         return attrs
     
@@ -131,6 +143,9 @@ class LoginSerializer(serializers.Serializer):
     
     Validates user credentials (email/password) and issues JWT tokens upon success.
     Returns access and refresh tokens for authenticated sessions.
+    
+    NOTE: Actual authentication logic is handled in the service layer.
+    This serializer only validates input format.
     """
     
     email = serializers.EmailField(
@@ -144,49 +159,9 @@ class LoginSerializer(serializers.Serializer):
         help_text='User password'
     )
     
-    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Authenticate user and generate JWT tokens.
-        
-        Args:
-            attrs: Dictionary containing email and password
-            
-        Returns:
-            Dict: User data with JWT tokens
-            
-        Raises:
-            serializers.ValidationError: If credentials are invalid
-        """
-        email = attrs.get('email', '').lower()
-        password = attrs.get('password')
-        
-        if not email or not password:
-            raise serializers.ValidationError('Email and password are required.')
-        
-        # Authenticate user by email
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise serializers.ValidationError('Invalid credentials.')
-        
-        # Check password
-        if not user.check_password(password):
-            raise serializers.ValidationError('Invalid credentials.')
-        
-        # Check if user is active
-        if not user.is_active:
-            raise serializers.ValidationError('User account is disabled.')
-        
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        
-        return {
-            'user': user,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-        }
+    def validate_email(self, value: str) -> str:
+        """Normalize email to lowercase."""
+        return value.lower().strip()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -197,7 +172,9 @@ class UserSerializer(serializers.ModelSerializer):
     Excludes sensitive fields like password and includes computed fields.
     """
     
-    full_name = serializers.SerializerMethodField(
+    full_name = serializers.CharField(
+        source='get_full_name',
+        read_only=True,
         help_text='User\'s full name (first_name + last_name)'
     )
     
@@ -217,19 +194,36 @@ class UserSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'email', 'is_active', 'is_staff', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'email', 'is_active', 'is_staff', 
+            'created_at', 'updated_at'
+        ]
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    """
+    Lightweight serializer for user list views.
     
-    def get_full_name(self, obj: User) -> str:
-        """
-        Get user's full name.
-        
-        Args:
-            obj: User instance
-            
-        Returns:
-            str: Full name or email if names not set
-        """
-        return obj.get_full_name()
+    Returns minimal user data for list endpoints to improve performance.
+    """
+    
+    full_name = serializers.CharField(
+        source='get_full_name',
+        read_only=True
+    )
+    
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',
+            'username',
+            'full_name',
+            'is_active',
+            'is_staff',
+            'created_at'
+        ]
+        read_only_fields = fields
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -249,10 +243,10 @@ class ProfileSerializer(serializers.ModelSerializer):
             'bio'
         ]
         extra_kwargs = {
-            'first_name': {'required': False, 'allow_blank': True},
-            'last_name': {'required': False, 'allow_blank': True},
-            'profile_picture': {'required': False, 'allow_null': True, 'allow_blank': True},
-            'bio': {'required': False, 'allow_blank': True},
+            'first_name': {'required': False, 'allow_blank': True, 'trim_whitespace': True},
+            'last_name': {'required': False, 'allow_blank': True, 'trim_whitespace': True},
+            'profile_picture': {'required': False, 'allow_blank': True, 'trim_whitespace': True},
+            'bio': {'required': False, 'allow_blank': True, 'trim_whitespace': True},
         }
     
     def validate_profile_picture(self, value: str) -> str:
@@ -268,8 +262,12 @@ class ProfileSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If URL is invalid
         """
-        if value and len(value) > 500:
-            raise serializers.ValidationError('Profile picture URL is too long (max 500 characters).')
+        if value:
+            value = value.strip()
+            if len(value) > 500:
+                raise serializers.ValidationError(
+                    'Profile picture URL is too long (max 500 characters).'
+                )
         return value
     
     def validate_bio(self, value: str) -> str:
@@ -285,8 +283,12 @@ class ProfileSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If bio is too long
         """
-        if value and len(value) > 500:
-            raise serializers.ValidationError('Bio is too long (max 500 characters).')
+        if value:
+            value = value.strip()
+            if len(value) > 500:
+                raise serializers.ValidationError(
+                    'Bio is too long (max 500 characters).'
+                )
         return value
     
     def update(self, instance: User, validated_data: Dict[str, Any]) -> User:
@@ -300,7 +302,52 @@ class ProfileSerializer(serializers.ModelSerializer):
         Returns:
             User: Updated user instance
         """
+        # Only update fields that were provided
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
+        
+        instance.save(update_fields=list(validated_data.keys()) + ['updated_at'])
+        
         return instance
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """
+    Serializer for changing user password.
+    """
+    
+    old_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'}
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'}
+    )
+    new_password_confirm = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'}
+    )
+    
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate password change data."""
+        new_password = attrs.get('new_password')
+        new_password_confirm = attrs.get('new_password_confirm')
+        
+        if new_password != new_password_confirm:
+            raise serializers.ValidationError({
+                'new_password_confirm': 'New passwords do not match.'
+            })
+        
+        # Validate new password strength
+        try:
+            validate_password(new_password)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({
+                'new_password': list(e.messages)
+            })
+        
+        return attrs

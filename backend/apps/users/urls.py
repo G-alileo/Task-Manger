@@ -1,8 +1,8 @@
 """
-URL configuration for user API endpoints.
+Optimized URL configuration for user API endpoints.
 
 This module defines URL patterns for user registration, authentication,
-profile management, and user listing endpoints.
+profile management, and user listing endpoints with additional functionality.
 """
 
 from django.urls import path
@@ -12,7 +12,9 @@ from .views import (
     RegisterView,
     LoginView,
     ProfileView,
-    UserListView
+    PasswordChangeView,
+    UserListView,
+    UserDetailView
 )
 
 app_name = 'users'
@@ -25,7 +27,9 @@ urlpatterns = [
     
     # Profile endpoints
     path('profile/', ProfileView.as_view(), name='profile'),
+    path('password/change/', PasswordChangeView.as_view(), name='password-change'),
     
     # Admin endpoints
     path('list/', UserListView.as_view(), name='user-list'),
+    path('<int:id>/', UserDetailView.as_view(), name='user-detail'),
 ]

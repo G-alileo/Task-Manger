@@ -1,19 +1,19 @@
 """
-API views for user authentication and profile management.
+Optimized API views for user authentication and profile management.
 
 This module contains views for user registration, login, profile operations,
-and user listing with proper authentication and permission controls.
+and user listing with proper authentication, permission controls, and performance optimizations.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
 from apps.core.exceptions import AuthenticationFailedException, ValidationException
@@ -22,7 +22,9 @@ from .serializers import (
     RegisterSerializer,
     LoginSerializer,
     UserSerializer,
-    ProfileSerializer
+    UserListSerializer,
+    ProfileSerializer,
+    PasswordChangeSerializer
 )
 from .services import UserService
 
@@ -52,47 +54,9 @@ class RegisterView(APIView):
         responses={
             201: OpenApiResponse(
                 response=UserSerializer,
-                description='User successfully registered',
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'User registered successfully',
-                            'data': {
-                                'id': 1,
-                                'email': 'user@example.com',
-                                'username': 'johndoe',
-                                'first_name': 'John',
-                                'last_name': 'Doe',
-                                'full_name': 'John Doe',
-                                'profile_picture': None,
-                                'bio': '',
-                                'is_active': True,
-                                'is_staff': False,
-                                'created_at': '2025-12-19T10:00:00Z',
-                                'updated_at': '2025-12-19T10:00:00Z'
-                            }
-                        }
-                    )
-                ]
+                description='User successfully registered'
             ),
-            400: OpenApiResponse(
-                description='Validation error',
-                examples=[
-                    OpenApiExample(
-                        'Validation Error',
-                        value={
-                            'status': 'error',
-                            'message': 'Validation failed',
-                            'errors': {
-                                'email': ['A user with this email already exists.'],
-                                'password': ['This password is too common.']
-                            }
-                        }
-                    )
-                ]
-            )
+            400: OpenApiResponse(description='Validation error')
         }
     )
     def post(self, request: Any) -> Response:
@@ -105,32 +69,31 @@ class RegisterView(APIView):
         Returns:
             Response: JSON response with created user or validation errors
         """
-        try:
-            serializer = RegisterSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            
-            # Use service layer for registration with transaction safety
-            user = UserService.register_user(serializer.validated_data)
-            
-            # Serialize response
-            user_data = UserSerializer(user).data
-            
-            logger.info(f"User registered: {user.email} (ID: {user.id}) from IP: {request.META.get('REMOTE_ADDR')}")
-            
-            return Response(
-                {
-                    'status': 'success',
-                    'message': 'User registered successfully',
-                    'data': user_data
-                },
-                status=status.HTTP_201_CREATED
-            )
-            
-        except ValidationException:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected registration error: {str(e)}", exc_info=True)
-            raise ValidationException("Registration failed")
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Use service layer for registration with transaction safety
+        user = UserService.register_user(serializer.validated_data)
+        
+        # Serialize response
+        user_data = UserSerializer(user).data
+        
+        logger.info(
+            f"User registered: {user.email} (ID: {user.id})",
+            extra={
+                'user_id': user.id,
+                'ip': request.META.get('REMOTE_ADDR')
+            }
+        )
+        
+        return Response(
+            {
+                'status': 'success',
+                'message': 'User registered successfully',
+                'data': user_data
+            },
+            status=status.HTTP_201_CREATED
+        )
 
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
@@ -153,44 +116,8 @@ class LoginView(APIView):
         description='Authenticate user with email and password. Returns JWT tokens on success.',
         request=LoginSerializer,
         responses={
-            200: OpenApiResponse(
-                description='Login successful',
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'Login successful',
-                            'data': {
-                                'user': {
-                                    'id': 1,
-                                    'email': 'user@example.com',
-                                    'username': 'johndoe',
-                                    'first_name': 'John',
-                                    'last_name': 'Doe',
-                                    'full_name': 'John Doe'
-                                },
-                                'tokens': {
-                                    'access': 'eyJ0eXAiOiJKV1QiLCJhbGc...',
-                                    'refresh': 'eyJ0eXAiOiJKV1QiLCJhbGc...'
-                                }
-                            }
-                        }
-                    )
-                ]
-            ),
-            400: OpenApiResponse(
-                description='Invalid credentials',
-                examples=[
-                    OpenApiExample(
-                        'Invalid Credentials',
-                        value={
-                            'status': 'error',
-                            'message': 'Invalid credentials'
-                        }
-                    )
-                ]
-            )
+            200: OpenApiResponse(description='Login successful'),
+            400: OpenApiResponse(description='Invalid credentials')
         }
     )
     def post(self, request: Any) -> Response:
@@ -203,45 +130,40 @@ class LoginView(APIView):
         Returns:
             Response: JSON response with user data and JWT tokens or error
         """
-        try:
-            email = request.data.get('email', '').lower()
-            password = request.data.get('password', '')
-            
-            if not email or not password:
-                raise ValidationException("Email and password are required")
-            
-            # Use service layer for authentication
-            result = UserService.authenticate_user(email, password)
-            
-            user = result['user']
-            tokens = result['tokens']
-            
-            # Serialize user data
-            user_data = UserSerializer(user).data
-            
-            logger.info(f"User logged in: {user.email} (ID: {user.id}) from IP: {request.META.get('REMOTE_ADDR')}")
-            
-            return Response(
-                {
-                    'status': 'success',
-                    'message': 'Login successful',
-                    'data': {
-                        'user': user_data,
-                        'tokens': tokens
-                    }
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        except AuthenticationFailedException as e:
-            logger.warning(f"Failed login: {request.data.get('email')} from IP: {request.META.get('REMOTE_ADDR')}")
-            return Response(
-                {'status': 'error', 'message': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            logger.error(f"Unexpected login error: {str(e)}", exc_info=True)
-            raise ValidationException("Login failed")
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+        
+        # Use service layer for authentication
+        result = UserService.authenticate_user(email, password)
+        
+        user = result['user']
+        tokens = result['tokens']
+        
+        # Serialize user data
+        user_data = UserSerializer(user).data
+        
+        logger.info(
+            f"User logged in: {user.email} (ID: {user.id})",
+            extra={
+                'user_id': user.id,
+                'ip': request.META.get('REMOTE_ADDR')
+            }
+        )
+        
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Login successful',
+                'data': {
+                    'user': user_data,
+                    'tokens': tokens
+                }
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 class ProfileView(APIView):
@@ -264,29 +186,7 @@ class ProfileView(APIView):
         responses={
             200: OpenApiResponse(
                 response=UserSerializer,
-                description='Profile retrieved successfully',
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'data': {
-                                'id': 1,
-                                'email': 'user@example.com',
-                                'username': 'johndoe',
-                                'first_name': 'John',
-                                'last_name': 'Doe',
-                                'full_name': 'John Doe',
-                                'profile_picture': 'https://example.com/profile.jpg',
-                                'bio': 'Software developer and task management enthusiast',
-                                'is_active': True,
-                                'is_staff': False,
-                                'created_at': '2025-12-19T10:00:00Z',
-                                'updated_at': '2025-12-19T10:00:00Z'
-                            }
-                        }
-                    )
-                ]
+                description='Profile retrieved successfully'
             ),
             401: OpenApiResponse(description='Authentication credentials not provided')
         }
@@ -301,51 +201,25 @@ class ProfileView(APIView):
         Returns:
             Response: JSON response with user profile data
         """
-        try:
-            user = request.user
-            serializer = UserSerializer(user)
-            
-            return Response(
-                {
-                    'status': 'success',
-                    'data': serializer.data
-                },
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            logger.error(f"Error retrieving profile: {str(e)}", exc_info=True)
-            raise ValidationException("Failed to retrieve profile")
+        serializer = UserSerializer(request.user)
+        
+        return Response(
+            {
+                'status': 'success',
+                'data': serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
     
     @extend_schema(
         tags=['Users'],
         summary='Update user profile',
-        description='Update the authenticated user\'s profile information (first_name, last_name, bio, profile_picture).',
+        description='Update the authenticated user\'s profile information.',
         request=ProfileSerializer,
         responses={
             200: OpenApiResponse(
                 response=UserSerializer,
-                description='Profile updated successfully',
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'message': 'Profile updated successfully',
-                            'data': {
-                                'id': 1,
-                                'email': 'user@example.com',
-                                'username': 'johndoe',
-                                'first_name': 'John',
-                                'last_name': 'Doe',
-                                'full_name': 'John Doe',
-                                'profile_picture': 'https://example.com/new-profile.jpg',
-                                'bio': 'Updated bio',
-                                'is_active': True,
-                                'is_staff': False
-                            }
-                        }
-                    )
-                ]
+                description='Profile updated successfully'
             ),
             400: OpenApiResponse(description='Validation error'),
             401: OpenApiResponse(description='Authentication credentials not provided')
@@ -361,33 +235,35 @@ class ProfileView(APIView):
         Returns:
             Response: JSON response with updated user profile
         """
-        try:
-            user = request.user
-            serializer = ProfileSerializer(data=request.data, partial=False)
-            serializer.is_valid(raise_exception=True)
-            
-            # Use service layer for update with transaction safety
-            updated_user = UserService.update_profile(user, serializer.validated_data)
-            
-            # Serialize response
-            user_data = UserSerializer(updated_user).data
-            
-            logger.info(f"Profile updated for user {user.id}")
-            
-            return Response(
-                {
-                    'status': 'success',
-                    'message': 'Profile updated successfully',
-                    'data': user_data
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        except ValidationException:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected profile update error: {str(e)}", exc_info=True)
-            raise ValidationException("Profile update failed")
+        serializer = ProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=False
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        # Use service layer for update with transaction safety
+        updated_user = UserService.update_profile(
+            request.user,
+            serializer.validated_data
+        )
+        
+        # Serialize response
+        user_data = UserSerializer(updated_user).data
+        
+        logger.info(
+            f"Profile updated for user {updated_user.id}",
+            extra={'user_id': updated_user.id}
+        )
+        
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Profile updated successfully',
+                'data': user_data
+            },
+            status=status.HTTP_200_OK
+        )
     
     @extend_schema(
         tags=['Users'],
@@ -413,33 +289,101 @@ class ProfileView(APIView):
         Returns:
             Response: JSON response with updated user profile
         """
-        try:
-            user = request.user
-            serializer = ProfileSerializer(data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
+        serializer = ProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        # Use service layer for update with transaction safety
+        updated_user = UserService.update_profile(
+            request.user,
+            serializer.validated_data
+        )
+        
+        # Serialize response
+        user_data = UserSerializer(updated_user).data
+        
+        logger.info(
+            f"Profile partially updated for user {updated_user.id}",
+            extra={'user_id': updated_user.id}
+        )
+        
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Profile updated successfully',
+                'data': user_data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class PasswordChangeView(APIView):
+    """
+    API endpoint for changing user password.
+    
+    Allows authenticated users to change their password.
+    
+    Permissions: Authenticated users only
+    """
+    
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        tags=['Users'],
+        summary='Change password',
+        description='Change the authenticated user\'s password.',
+        request=PasswordChangeSerializer,
+        responses={
+            200: OpenApiResponse(description='Password changed successfully'),
+            400: OpenApiResponse(description='Validation error'),
+            401: OpenApiResponse(description='Authentication credentials not provided')
+        }
+    )
+    def post(self, request: Any) -> Response:
+        """
+        Handle password change request.
+        
+        Args:
+            request: HTTP request with password change data
             
-            # Use service layer for update with transaction safety
-            updated_user = UserService.update_profile(user, serializer.validated_data)
-            
-            # Serialize response
-            user_data = UserSerializer(updated_user).data
-            
-            logger.info(f"Profile partially updated for user {user.id}")
-            
+        Returns:
+            Response: JSON response with success or error message
+        """
+        serializer = PasswordChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        old_password = serializer.validated_data['old_password']
+        new_password = serializer.validated_data['new_password']
+        
+        # Verify old password
+        if not user.check_password(old_password):
             return Response(
                 {
-                    'status': 'success',
-                    'message': 'Profile updated successfully',
-                    'data': user_data
+                    'status': 'error',
+                    'message': 'Current password is incorrect'
                 },
-                status=status.HTTP_200_OK
+                status=status.HTTP_400_BAD_REQUEST
             )
-            
-        except ValidationException:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected profile update error: {str(e)}", exc_info=True)
-            raise ValidationException("Profile update failed")
+        
+        # Change password using service layer
+        UserService.change_password(user, new_password)
+        
+        logger.info(
+            f"Password changed for user {user.id}",
+            extra={'user_id': user.id}
+        )
+        
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Password changed successfully'
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 class UserListView(generics.ListAPIView):
@@ -452,15 +396,26 @@ class UserListView(generics.ListAPIView):
     Permissions: Admin users only
     """
     
-    serializer_class = UserSerializer
+    serializer_class = UserListSerializer
     permission_classes = [IsAdminUser]
     
     def get_queryset(self):
-        """Return optimized user queryset with only needed fields"""
-        return User.objects.all().order_by('-created_at').only(
-            'id', 'email', 'username', 'first_name', 'last_name',
-            'is_active', 'is_staff', 'created_at', 'updated_at'
-        )
+        """
+        Return optimized user queryset with only needed fields.
+        
+        Uses select_related for any foreign keys and only() to fetch
+        minimal fields, reducing database load and response time.
+        """
+        return User.objects.select_related().only(
+            'id',
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'is_active',
+            'is_staff',
+            'created_at'
+        ).order_by('-created_at')
     
     @extend_schema(
         tags=['Users'],
@@ -468,31 +423,8 @@ class UserListView(generics.ListAPIView):
         description='Retrieve a paginated list of all users. Only accessible by admin users.',
         responses={
             200: OpenApiResponse(
-                response=UserSerializer(many=True),
-                description='List of users retrieved successfully',
-                examples=[
-                    OpenApiExample(
-                        'Success Response',
-                        value={
-                            'status': 'success',
-                            'count': 25,
-                            'next': 'http://localhost:8000/api/users/list/?page=2',
-                            'previous': None,
-                            'results': [
-                                {
-                                    'id': 1,
-                                    'email': 'user@example.com',
-                                    'username': 'johndoe',
-                                    'first_name': 'John',
-                                    'last_name': 'Doe',
-                                    'full_name': 'John Doe',
-                                    'is_active': True,
-                                    'is_staff': False
-                                }
-                            ]
-                        }
-                    )
-                ]
+                response=UserListSerializer(many=True),
+                description='List of users retrieved successfully'
             ),
             401: OpenApiResponse(description='Authentication credentials not provided'),
             403: OpenApiResponse(description='Permission denied - admin access required')
@@ -510,4 +442,52 @@ class UserListView(generics.ListAPIView):
         Returns:
             Response: JSON response with paginated user list
         """
+        return super().get(request, *args, **kwargs)
+
+
+class UserDetailView(generics.RetrieveAPIView):
+    """
+    API endpoint for retrieving a specific user's details.
+    
+    Only accessible by admin users.
+    
+    Permissions: Admin users only
+    """
+    
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+    lookup_field = 'id'
+    
+    def get_queryset(self):
+        """Return optimized queryset."""
+        return User.objects.select_related().only(
+            'id',
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'profile_picture',
+            'bio',
+            'is_active',
+            'is_staff',
+            'created_at',
+            'updated_at'
+        )
+    
+    @extend_schema(
+        tags=['Users'],
+        summary='Get user details',
+        description='Retrieve detailed information about a specific user. Only accessible by admin users.',
+        responses={
+            200: OpenApiResponse(
+                response=UserSerializer,
+                description='User details retrieved successfully'
+            ),
+            401: OpenApiResponse(description='Authentication credentials not provided'),
+            403: OpenApiResponse(description='Permission denied - admin access required'),
+            404: OpenApiResponse(description='User not found')
+        }
+    )
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        """Handle GET request for user details."""
         return super().get(request, *args, **kwargs)

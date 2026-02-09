@@ -1,6 +1,4 @@
 """
-Serializers for the Task API endpoints.
-
 This module contains serializers for task creation, updates,
 and data representation.
 """
