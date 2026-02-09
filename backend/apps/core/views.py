@@ -1,8 +1,6 @@
 """
 Health check and monitoring views for the Task Manager API.
 
-These endpoints are used for monitoring the application's health status,
-checking database connectivity, cache availability, and overall system health.
 """
 
 import logging
@@ -21,17 +19,7 @@ logger = logging.getLogger('django')
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def health_check(request) -> Response:
-    """
-    Health check endpoint for monitoring and load balancers.
-    
-    Returns the overall health status of the application including:
-    - Database connectivity
-    - Cache availability
-    - Application status
-    
-    Returns:
-        Response: JSON with health status (200 if healthy, 503 if unhealthy)
-    """
+
     health = {
         'status': 'healthy',
         'timestamp': timezone.now().isoformat(),
@@ -93,15 +81,6 @@ def health_check(request) -> Response:
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def readiness_check(request) -> Response:
-    """
-    Readiness check endpoint for Kubernetes/container orchestration.
-    
-    Indicates whether the application is ready to accept traffic.
-    More strict than health check - all systems must be operational.
-    
-    Returns:
-        Response: JSON with readiness status (200 if ready, 503 if not ready)
-    """
     ready = True
     checks = {}
     
@@ -143,15 +122,7 @@ def readiness_check(request) -> Response:
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def liveness_check(request) -> Response:
-    """
-    Liveness check endpoint for Kubernetes/container orchestration.
-    
-    Indicates whether the application is alive and running.
-    Should always return 200 unless the application is completely broken.
-    
-    Returns:
-        Response: JSON indicating the application is alive
-    """
+
     return Response(
         {
             'alive': True,
@@ -164,17 +135,6 @@ def liveness_check(request) -> Response:
 
 @api_view(['GET'])
 def metrics_summary(request) -> Response:
-    """
-    Basic metrics endpoint providing system statistics.
-    
-    Requires authentication. Provides:
-    - Database connection info
-    - Cache statistics (if available)
-    - Basic system info
-    
-    Returns:
-        Response: JSON with system metrics
-    """
     metrics = {
         'timestamp': timezone.now().isoformat(),
         'database': {},
