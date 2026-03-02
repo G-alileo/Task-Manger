@@ -1,10 +1,3 @@
-"""
-Optimized API views for user authentication and profile management.
-
-This module contains views for user registration, login, profile operations,
-and user listing with proper authentication, permission controls, and performance optimizations.
-"""
-
 import logging
 from typing import Any
 from django.utils.decorators import method_decorator
@@ -33,17 +26,7 @@ logger = logging.getLogger('apps.users')
 
 
 @method_decorator(ratelimit(key='ip', rate='3/h', method='POST', block=True), name='post')
-class RegisterView(APIView):
-    """
-    API endpoint for user registration.
-    
-    Allows new users to create an account with email, username, and password.
-    Returns the created user data upon successful registration.
-    Rate limited to 3 registrations per hour per IP.
-    
-    Permissions: Public (no authentication required)
-    """
-    
+class RegisterView(APIView):  
     permission_classes = [AllowAny]
     
     @extend_schema(
@@ -60,15 +43,6 @@ class RegisterView(APIView):
         }
     )
     def post(self, request: Any) -> Response:
-        """
-        Handle POST request for user registration using service layer.
-        
-        Args:
-            request: HTTP request containing registration data
-            
-        Returns:
-            Response: JSON response with created user or validation errors
-        """
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -97,17 +71,7 @@ class RegisterView(APIView):
 
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
-class LoginView(APIView):
-    """
-    API endpoint for user authentication.
-    
-    Validates user credentials and issues JWT access and refresh tokens.
-    Returns user data along with authentication tokens.
-    Rate limited to 5 login attempts per minute per IP.
-    
-    Permissions: Public (no authentication required)
-    """
-    
+class LoginView(APIView):    
     permission_classes = [AllowAny]
     
     @extend_schema(
@@ -121,15 +85,6 @@ class LoginView(APIView):
         }
     )
     def post(self, request: Any) -> Response:
-        """
-        Handle POST request for user login using service layer.
-        
-        Args:
-            request: HTTP request containing login credentials
-            
-        Returns:
-            Response: JSON response with user data and JWT tokens or error
-        """
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -167,15 +122,6 @@ class LoginView(APIView):
 
 
 class ProfileView(APIView):
-    """
-    API endpoint for user profile operations.
-    
-    Allows authenticated users to view and update their profile information.
-    GET: Retrieve current user's profile
-    PUT/PATCH: Update current user's profile fields
-    
-    Permissions: Authenticated users only
-    """
     
     permission_classes = [IsAuthenticated]
     
@@ -192,15 +138,7 @@ class ProfileView(APIView):
         }
     )
     def get(self, request: Any) -> Response:
-        """
-        Retrieve the current user's profile.
-        
-        Args:
-            request: HTTP request with authenticated user
-            
-        Returns:
-            Response: JSON response with user profile data
-        """
+
         serializer = UserSerializer(request.user)
         
         return Response(
@@ -226,15 +164,6 @@ class ProfileView(APIView):
         }
     )
     def put(self, request: Any) -> Response:
-        """
-        Update the current user's profile (full update) using service layer.
-        
-        Args:
-            request: HTTP request with profile update data
-            
-        Returns:
-            Response: JSON response with updated user profile
-        """
         serializer = ProfileSerializer(
             request.user,
             data=request.data,
@@ -280,15 +209,7 @@ class ProfileView(APIView):
         }
     )
     def patch(self, request: Any) -> Response:
-        """
-        Partially update the current user's profile using service layer.
-        
-        Args:
-            request: HTTP request with partial profile update data
-            
-        Returns:
-            Response: JSON response with updated user profile
-        """
+
         serializer = ProfileSerializer(
             request.user,
             data=request.data,
@@ -321,13 +242,6 @@ class ProfileView(APIView):
 
 
 class PasswordChangeView(APIView):
-    """
-    API endpoint for changing user password.
-    
-    Allows authenticated users to change their password.
-    
-    Permissions: Authenticated users only
-    """
     
     permission_classes = [IsAuthenticated]
     
@@ -343,15 +257,6 @@ class PasswordChangeView(APIView):
         }
     )
     def post(self, request: Any) -> Response:
-        """
-        Handle password change request.
-        
-        Args:
-            request: HTTP request with password change data
-            
-        Returns:
-            Response: JSON response with success or error message
-        """
         serializer = PasswordChangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -387,25 +292,11 @@ class PasswordChangeView(APIView):
 
 
 class UserListView(generics.ListAPIView):
-    """
-    API endpoint for listing all users.
-    
-    Returns a paginated list of all users in the system.
-    Only accessible by admin users (staff members).
-    
-    Permissions: Admin users only
-    """
     
     serializer_class = UserListSerializer
     permission_classes = [IsAdminUser]
     
     def get_queryset(self):
-        """
-        Return optimized user queryset with only needed fields.
-        
-        Uses select_related for any foreign keys and only() to fetch
-        minimal fields, reducing database load and response time.
-        """
         return User.objects.select_related().only(
             'id',
             'email',
@@ -431,28 +322,10 @@ class UserListView(generics.ListAPIView):
         }
     )
     def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
-        """
-        Handle GET request for user list.
-        
-        Args:
-            request: HTTP request
-            *args: Additional positional arguments
-            **kwargs: Additional keyword arguments
-            
-        Returns:
-            Response: JSON response with paginated user list
-        """
         return super().get(request, *args, **kwargs)
 
 
 class UserDetailView(generics.RetrieveAPIView):
-    """
-    API endpoint for retrieving a specific user's details.
-    
-    Only accessible by admin users.
-    
-    Permissions: Admin users only
-    """
     
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
@@ -489,5 +362,4 @@ class UserDetailView(generics.RetrieveAPIView):
         }
     )
     def get(self, request: Any, *args: Any, **kwargs: Any) -> Response:
-        """Handle GET request for user details."""
         return super().get(request, *args, **kwargs)

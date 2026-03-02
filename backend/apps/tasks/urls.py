@@ -1,8 +1,3 @@
-"""
-This module defines URL patterns for task CRUD operations,
-filtering, searching, statistics, and bulk operations.
-"""
-
 from django.urls import path
 
 from .views import (

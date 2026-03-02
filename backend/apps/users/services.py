@@ -1,9 +1,3 @@
-"""
-This module encapsulates all business logic related to users,
-including authentication, profile management, and user operations
-with performance optimizations.
-"""
-
 import logging
 from typing import Dict, Any, Optional, List
 from django.db import transaction
@@ -22,30 +16,12 @@ logger = logging.getLogger('apps.users')
 
 
 class UserService:
-    """
-    Service class for user-related business logic.
-    
-    Centralizes all user operations including authentication,
-    registration, and profile management with caching and optimization.
-    """
     
     CACHE_TIMEOUT = 600  # 10 minutes
     CACHE_PREFIX = 'user'
     
     @staticmethod
     def register_user(validated_data: Dict[str, Any]) -> User:
-        """
-        Register a new user with validated data.
-        
-        Args:
-            validated_data: Validated user registration data
-            
-        Returns:
-            User: Newly created user instance
-            
-        Raises:
-            ValidationException: If user creation fails
-        """
         try:
             with transaction.atomic():
                 # Remove password_confirm
@@ -70,19 +46,6 @@ class UserService:
     
     @staticmethod
     def authenticate_user(email: str, password: str) -> Dict[str, Any]:
-        """
-        Authenticate a user and generate JWT tokens.
-        
-        Args:
-            email: User's email address
-            password: User's password
-            
-        Returns:
-            Dict: User instance and authentication tokens
-            
-        Raises:
-            AuthenticationFailedException: If authentication fails
-        """
         try:
             email = email.lower().strip()
             
@@ -137,19 +100,6 @@ class UserService:
     
     @staticmethod
     def update_profile(user: User, validated_data: Dict[str, Any]) -> User:
-        """
-        Update user profile information.
-        
-        Args:
-            user: User instance to update
-            validated_data: Validated profile data
-            
-        Returns:
-            User: Updated user instance
-            
-        Raises:
-            ValidationException: If update fails
-        """
         try:
             with transaction.atomic():
                 # Only update provided fields
@@ -185,16 +135,6 @@ class UserService:
     
     @staticmethod
     def change_password(user: User, new_password: str) -> None:
-        """
-        Change user password.
-        
-        Args:
-            user: User instance
-            new_password: New password (plaintext, will be hashed)
-            
-        Raises:
-            ValidationException: If password change fails
-        """
         try:
             with transaction.atomic():
                 user.set_password(new_password)
@@ -218,19 +158,6 @@ class UserService:
     
     @staticmethod
     def get_user_by_id(user_id: int, use_cache: bool = True) -> User:
-        """
-        Get user by ID with optional caching.
-        
-        Args:
-            user_id: User's ID
-            use_cache: Whether to use cache
-            
-        Returns:
-            User: User instance
-            
-        Raises:
-            ResourceNotFoundException: If user not found
-        """
         cache_key = f'{UserService.CACHE_PREFIX}_{user_id}'
         
         if use_cache:
@@ -254,19 +181,6 @@ class UserService:
     
     @staticmethod
     def get_user_by_email(email: str, use_cache: bool = True) -> User:
-        """
-        Get user by email with optional caching.
-        
-        Args:
-            email: User's email address
-            use_cache: Whether to use cache
-            
-        Returns:
-            User: User instance
-            
-        Raises:
-            ResourceNotFoundException: If user not found
-        """
         email = email.lower().strip()
         cache_key = f'{UserService.CACHE_PREFIX}_email_{email}'
         
@@ -291,12 +205,6 @@ class UserService:
     
     @staticmethod
     def deactivate_user(user: User) -> None:
-        """
-        Deactivate a user account.
-        
-        Args:
-            user: User instance to deactivate
-        """
         try:
             with transaction.atomic():
                 user.is_active = False
@@ -320,12 +228,6 @@ class UserService:
     
     @staticmethod
     def activate_user(user: User) -> None:
-        """
-        Activate a user account.
-        
-        Args:
-            user: User instance to activate
-        """
         try:
             with transaction.atomic():
                 user.is_active = True
@@ -349,12 +251,6 @@ class UserService:
     
     @staticmethod
     def get_active_users_count() -> int:
-        """
-        Get count of active users with caching.
-        
-        Returns:
-            int: Number of active users
-        """
         cache_key = f'{UserService.CACHE_PREFIX}_active_count'
         
         cached_count = cache.get(cache_key)
@@ -368,15 +264,6 @@ class UserService:
     
     @staticmethod
     def bulk_deactivate_users(user_ids: List[int]) -> int:
-        """
-        Bulk deactivate multiple users.
-        
-        Args:
-            user_ids: List of user IDs to deactivate
-            
-        Returns:
-            int: Number of users deactivated
-        """
         try:
             with transaction.atomic():
                 updated_count = User.objects.filter(
@@ -404,12 +291,6 @@ class UserService:
     
     @staticmethod
     def _invalidate_user_cache(user_id: int) -> None:
-        """
-        Invalidate all cache entries for a user.
-        
-        Args:
-            user_id: User ID to invalidate cache for
-        """
         cache_keys = [
             f'{UserService.CACHE_PREFIX}_{user_id}',
             f'{UserService.CACHE_PREFIX}_active_count'

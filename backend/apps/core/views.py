@@ -1,8 +1,3 @@
-"""
-Health check and monitoring views for the Task Manager API.
-
-"""
-
 import logging
 from typing import Dict, Any
 from django.core.cache import cache

@@ -1,10 +1,3 @@
-"""
-Custom exception handler for REST API.
-
-Provides consistent error responses across the entire application
-with proper logging and error tracking.
-"""
-
 import logging
 from typing import Any, Dict, Optional
 
@@ -33,26 +26,12 @@ logger = logging.getLogger('django.request')
 
 
 def custom_exception_handler(exc: Exception, context: Dict[str, Any]) -> Optional[Response]:
-    """
-    Custom exception handler that provides consistent error responses.
-    
-    Args:
-        exc: The exception that was raised
-        context: Context information about where the exception occurred
-        
-    Returns:
-        Response: Formatted error response or None
-    """
-    # Call REST framework's default exception handler first
     response = drf_exception_handler(exc, context)
-    
-    # Get request information for logging
     request = context.get('view', None)
     request_user = getattr(request, 'request', None)
     user_id = getattr(request_user.user if request_user else None, 'id', 'Anonymous')
     request_path = getattr(request_user, 'path', 'Unknown') if request_user else 'Unknown'
     
-    # Handle Django's database errors
     if isinstance(exc, DatabaseError):
         logger.error(
             f"Database error for user {user_id} on path {request_path}: {str(exc)}",
@@ -69,7 +48,6 @@ def custom_exception_handler(exc: Exception, context: Dict[str, Any]) -> Optiona
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
     
-    # Handle integrity errors (unique constraints, foreign keys, etc.)
     if isinstance(exc, IntegrityError):
         logger.warning(
             f"Integrity error for user {user_id} on path {request_path}: {str(exc)}",

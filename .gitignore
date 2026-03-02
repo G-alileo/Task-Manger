@@ -75,3 +75,6 @@ venv/
 
 # migrations
 migrations/
+
+# logs
+logs/

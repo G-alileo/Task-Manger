@@ -1,8 +1,3 @@
-"""
-This module contains serializers with performance optimizations including
-minimal field selection and efficient validation.
-"""
-
 from typing import Dict, Any
 from rest_framework import serializers
 from django.utils import timezone
@@ -11,12 +6,6 @@ from .models import Task
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    """
-    Full serializer for task data representation.
-    
-    Provides read-only fields for user information and computed properties.
-    """
-    
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_username = serializers.CharField(source='user.username', read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
@@ -51,13 +40,6 @@ class TaskSerializer(serializers.ModelSerializer):
 
 
 class TaskListSerializer(serializers.ModelSerializer):
-    """
-    Lightweight serializer for task list views.
-    
-    Returns minimal task data for list endpoints to improve performance.
-    Excludes heavy fields like description and user details.
-    """
-    
     is_overdue = serializers.BooleanField(read_only=True)
     
     class Meta:
@@ -76,13 +58,6 @@ class TaskListSerializer(serializers.ModelSerializer):
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating new tasks.
-    
-    Handles task creation with validation for required fields.
-    User is set automatically from the authenticated request.
-    """
-    
     class Meta:
         model = Task
         fields = [
@@ -102,18 +77,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         }
     
     def validate_title(self, value: str) -> str:
-        """
-        Validate task title.
-        
-        Args:
-            value: Task title
-            
-        Returns:
-            str: Validated title
-            
-        Raises:
-            serializers.ValidationError: If title is invalid
-        """
         value = value.strip()
         if len(value) < 3:
             raise serializers.ValidationError(
@@ -122,18 +85,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return value
     
     def validate_due_date(self, value):
-        """
-        Validate due date is not in the past.
-        
-        Args:
-            value: Due date
-            
-        Returns:
-            datetime: Validated due date
-            
-        Raises:
-            serializers.ValidationError: If due date is in the past
-        """
         if value and value < timezone.now():
             raise serializers.ValidationError(
                 'Due date cannot be in the past.'
@@ -141,15 +92,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return value
     
     def validate_tags(self, value: str) -> str:
-        """
-        Validate and clean tags.
-        
-        Args:
-            value: Comma-separated tags
-            
-        Returns:
-            str: Cleaned tags
-        """
         if value:
             # Clean and deduplicate tags
             tags = [tag.strip() for tag in value.split(',') if tag.strip()]
@@ -165,26 +107,11 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data: Dict[str, Any]) -> Task:
-        """
-        Create a new task for the authenticated user.
-        
-        Args:
-            validated_data: Validated task data
-            
-        Returns:
-            Task: Created task instance
-        """
         # User is set in the view, not here
         return super().create(validated_data)
 
 
-class TaskUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for updating existing tasks.
-    
-    Allows partial updates of task fields with proper validation.
-    """
-    
+class TaskUpdateSerializer(serializers.ModelSerializer):  
     class Meta:
         model = Task
         fields = [
@@ -237,16 +164,6 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         return value
     
     def update(self, instance: Task, validated_data: Dict[str, Any]) -> Task:
-        """
-        Update task with validated data.
-        
-        Args:
-            instance: Task instance to update
-            validated_data: Dictionary of validated field data
-            
-        Returns:
-            Task: Updated task instance
-        """
         # Build list of fields that actually changed
         update_fields = []
         for attr, value in validated_data.items():
@@ -262,13 +179,7 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
-class TaskStatsSerializer(serializers.Serializer):
-    """
-    Serializer for task statistics.
-    
-    Provides counts of tasks by status and priority.
-    """
-    
+class TaskStatsSerializer(serializers.Serializer):    
     total = serializers.IntegerField()
     todo = serializers.IntegerField()
     in_progress = serializers.IntegerField()
@@ -282,9 +193,6 @@ class TaskStatsSerializer(serializers.Serializer):
 
 
 class BulkTaskActionSerializer(serializers.Serializer):
-    """
-    Serializer for bulk task operations.
-    """
     
     task_ids = serializers.ListField(
         child=serializers.IntegerField(),
@@ -302,9 +210,6 @@ class BulkTaskActionSerializer(serializers.Serializer):
 
 
 class BulkStatusUpdateSerializer(BulkTaskActionSerializer):
-    """
-    Serializer for bulk status updates.
-    """
     
     status = serializers.ChoiceField(
         choices=Task.Status.choices,
@@ -313,9 +218,6 @@ class BulkStatusUpdateSerializer(BulkTaskActionSerializer):
 
 
 class TaskDuplicateSerializer(serializers.Serializer):
-    """
-    Serializer for task duplication.
-    """
     
     title = serializers.CharField(
         required=False,

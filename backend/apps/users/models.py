@@ -1,8 +1,3 @@
-"""
-This module contains the custom User model and UserManager for handling
-user authentication and profile management with performance optimizations.
-"""
-
 from typing import Optional
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
@@ -13,12 +8,6 @@ from django.utils.translation import gettext_lazy as _
 
 
 class UserManager(BaseUserManager):
-    """
-    Custom user manager for handling user creation operations.
-    
-    This manager provides methods for creating regular users and superusers
-    with email as the primary identifier.
-    """
 
     def create_user(
         self,
@@ -27,21 +16,7 @@ class UserManager(BaseUserManager):
         password: Optional[str] = None,
         **extra_fields
     ) -> 'User':
-        """
-        Create and save a regular user with the given email, username, and password.
         
-        Args:
-            email: User's email address (required, used for authentication)
-            username: User's unique username (required)
-            password: User's password (will be hashed)
-            **extra_fields: Additional fields for the user model
-            
-        Returns:
-            User: The created user instance
-            
-        Raises:
-            ValueError: If email or username is not provided
-        """
         if not email:
             raise ValueError(_('The Email field must be set'))
         if not username:
@@ -70,21 +45,7 @@ class UserManager(BaseUserManager):
         password: Optional[str] = None,
         **extra_fields
     ) -> 'User':
-        """
-        Create and save a superuser with the given email, username, and password.
-        
-        Args:
-            email: Superuser's email address (required)
-            username: Superuser's unique username (required)
-            password: Superuser's password (will be hashed)
-            **extra_fields: Additional fields for the user model
-            
-        Returns:
-            User: The created superuser instance
-            
-        Raises:
-            ValueError: If is_staff or is_superuser is not True
-        """
+
         # Set required superuser flags
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
@@ -108,25 +69,6 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """
-    Custom user model for the task manager application.
-    
-    This model extends AbstractBaseUser and PermissionsMixin to provide
-    a flexible user authentication system with email-based login and
-    comprehensive profile management capabilities.
-    
-    Authentication:
-        - Uses email as the primary login field (USERNAME_FIELD)
-        - Supports JWT token authentication
-        - Password is automatically hashed using Django's password hashers
-    
-    Permissions:
-        - Inherits Django's permission system via PermissionsMixin
-        - Supports staff and superuser designations
-        - Can be used with Django's built-in permission framework
-    """
-
-    # === Authentication Fields ===
     email = models.EmailField(
         _('email address'),
         max_length=255,
@@ -142,7 +84,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text=_('Required. 150 characters or fewer. Unique identifier.')
     )
     
-    # === Profile Fields ===
     first_name = models.CharField(
         _('first name'),
         max_length=150,
@@ -175,7 +116,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text=_('Optional. Short biography or description about the user.')
     )
     
-    # === Status Fields ===
     is_active = models.BooleanField(
         _('active'),
         default=True,
@@ -194,7 +134,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         )
     )
     
-    # === Timestamp Fields ===
     created_at = models.DateTimeField(
         _('date joined'),
         default=timezone.now,
@@ -208,10 +147,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text=_('Timestamp when the user account was last modified.')
     )
     
-    # === Manager ===
     objects = UserManager()
     
-    # === Authentication Configuration ===
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
     

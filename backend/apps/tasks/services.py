@@ -1,8 +1,3 @@
-"""
-This module encapsulates all business logic related to tasks with
-performance optimizations including caching, query optimization, and bulk operations.
-"""
-
 import logging
 from typing import List, Dict, Any, Optional
 from django.db import transaction
@@ -18,31 +13,12 @@ logger = logging.getLogger('apps.tasks')
 
 
 class TaskService:
-    """
-    Service class for task-related business logic.
-    
-    Centralizes all task operations including CRUD, filtering,
-    statistics, and business rule enforcement with caching and optimization.
-    """
     
     CACHE_TIMEOUT = 300  # 5 minutes
     CACHE_PREFIX = 'task'
     
     @staticmethod
     def create_task(user, validated_data: Dict[str, Any]) -> Task:
-        """
-        Create a new task for a user.
-        
-        Args:
-            user: User who owns the task
-            validated_data: Validated task data
-            
-        Returns:
-            Task: Created task instance
-            
-        Raises:
-            ValidationException: If business rules are violated
-        """
         try:
             with transaction.atomic():
                 validated_data['user'] = user
@@ -67,19 +43,6 @@ class TaskService:
     
     @staticmethod
     def update_task(task: Task, validated_data: Dict[str, Any]) -> Task:
-        """
-        Update an existing task with optimized field updates.
-        
-        Args:
-            task: Task instance to update
-            validated_data: Validated update data
-            
-        Returns:
-            Task: Updated task instance
-            
-        Raises:
-            ValidationException: If business rules are violated
-        """
         try:
             with transaction.atomic():
                 # Build list of fields that actually changed
@@ -117,13 +80,6 @@ class TaskService:
     
     @staticmethod
     def delete_task(task: Task, soft: bool = False) -> None:
-        """
-        Delete a task (hard or soft delete).
-        
-        Args:
-            task: Task instance to delete
-            soft: If True, perform soft delete; if False, hard delete
-        """
         try:
             user_id = task.user.id
             task_id = task.id
@@ -156,19 +112,6 @@ class TaskService:
         overdue: Optional[bool] = None,
         optimize_for_list: bool = False
     ) -> QuerySet:
-        """
-        Get filtered tasks for a user with query optimization.
-        
-        Args:
-            user: User whose tasks to retrieve
-            status: Optional status filter
-            priority: Optional priority filter
-            overdue: Optional overdue filter
-            optimize_for_list: If True, use optimized_list() for minimal data
-            
-        Returns:
-            QuerySet: Filtered task queryset
-        """
         # Start with optimized base query
         if optimize_for_list:
             queryset = Task.objects.filter(user=user).optimized_list()
@@ -192,16 +135,6 @@ class TaskService:
     
     @staticmethod
     def get_task_statistics(user, use_cache: bool = True) -> Dict[str, int]:
-        """
-        Calculate task statistics for a user with caching.
-        
-        Args:
-            user: User whose statistics to calculate
-            use_cache: Whether to use cache (default: True)
-            
-        Returns:
-            Dict: Dictionary containing task statistics
-        """
         cache_key = f'{TaskService.CACHE_PREFIX}_stats_{user.id}'
         
         if use_cache:
@@ -238,20 +171,7 @@ class TaskService:
         task_ids: List[int],
         new_status: str
     ) -> int:
-        """
-        Bulk update task status for multiple tasks.
-        
-        Args:
-            user: User who owns the tasks
-            task_ids: List of task IDs to update
-            new_status: New status to set
-            
-        Returns:
-            int: Number of tasks updated
-            
-        Raises:
-            ValidationException: If operation fails
-        """
+
         try:
             with transaction.atomic():
                 # Use the manager's bulk_update_status method
@@ -285,17 +205,7 @@ class TaskService:
     
     @staticmethod
     def bulk_delete_tasks(user, task_ids: List[int], soft: bool = False) -> int:
-        """
-        Bulk delete tasks for a user.
-        
-        Args:
-            user: User who owns the tasks
-            task_ids: List of task IDs to delete
-            soft: If True, perform soft delete; if False, hard delete
-            
-        Returns:
-            int: Number of tasks deleted
-        """
+
         try:
             with transaction.atomic():
                 tasks = Task.objects.filter(user=user, id__in=task_ids)
@@ -326,16 +236,7 @@ class TaskService:
     
     @staticmethod
     def duplicate_task(task: Task, custom_title: Optional[str] = None) -> Task:
-        """
-        Duplicate a task.
-        
-        Args:
-            task: Task to duplicate
-            custom_title: Optional custom title for the duplicate
-            
-        Returns:
-            Task: New duplicated task instance
-        """
+
         try:
             with transaction.atomic():
                 duplicate = task.duplicate()
@@ -364,39 +265,17 @@ class TaskService:
     
     @staticmethod
     def get_overdue_tasks(user) -> QuerySet:
-        """
-        Get all overdue tasks for a user.
-        
-        Args:
-            user: User whose overdue tasks to retrieve
-            
-        Returns:
-            QuerySet: Overdue tasks
-        """
+
         return Task.objects.for_user(user).overdue()
     
     @staticmethod
     def get_due_soon_tasks(user, hours: int = 24) -> QuerySet:
-        """
-        Get tasks due soon for a user.
-        
-        Args:
-            user: User whose tasks to retrieve
-            hours: Number of hours to look ahead (default: 24)
-            
-        Returns:
-            QuerySet: Tasks due soon
-        """
+
         return Task.objects.for_user(user).due_soon(hours=hours)
     
     @staticmethod
     def _invalidate_user_cache(user_id: int) -> None:
-        """
-        Invalidate all cache entries for a user.
-        
-        Args:
-            user_id: User ID to invalidate cache for
-        """
+
         cache_keys = [
             f'{TaskService.CACHE_PREFIX}_stats_{user_id}',
         ]
@@ -405,12 +284,6 @@ class TaskService:
     
     @staticmethod
     def _invalidate_task_cache(task_id: int) -> None:
-        """
-        Invalidate cache entries for a specific task.
-        
-        Args:
-            task_id: Task ID to invalidate cache for
-        """
         cache_key = f'{TaskService.CACHE_PREFIX}_{task_id}'
         cache.delete(cache_key)
         logger.debug(f"Invalidated cache for task {task_id}")

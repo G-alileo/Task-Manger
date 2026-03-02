@@ -1,10 +1,3 @@
-"""
-Optimized URL configuration for user API endpoints.
-
-This module defines URL patterns for user registration, authentication,
-profile management, and user listing endpoints with additional functionality.
-"""
-
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 

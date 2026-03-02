@@ -1,10 +1,3 @@
-"""
-Custom exception classes for the Task Manager application.
-
-This module defines domain-specific exceptions for better error handling
-and more meaningful error messages throughout the application.
-"""
-
 from rest_framework.exceptions import APIException
 from rest_framework import status
 

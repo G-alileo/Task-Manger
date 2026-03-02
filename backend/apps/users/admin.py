@@ -1,7 +1,3 @@
-"""
-Django admin configuration for the User model.
-"""
-
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
@@ -11,13 +7,6 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    """
-    Custom admin interface for the User model.
-    
-    Provides a comprehensive interface for managing users in the Django admin,
-    including filtering, searching, and organized fieldsets.
-    """
-    
     # Display configuration
     list_display = ('email', 'username', 'first_name', 'last_name', 'is_staff', 'is_active', 'created_at')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'created_at')

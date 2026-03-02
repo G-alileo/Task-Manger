@@ -1,8 +1,3 @@
-"""
-This module contains views for task CRUD operations, filtering,
-searching, and statistics with performance optimizations.
-"""
-
 import logging
 from typing import Any
 from rest_framework import status, generics, filters
@@ -30,14 +25,6 @@ logger = logging.getLogger('apps.tasks')
 
 
 class TaskListCreateView(generics.ListCreateAPIView):
-    """
-    Optimized API endpoint for listing and creating tasks.
-    
-    GET: List all tasks for the authenticated user with filtering and search.
-    POST: Create a new task for the authenticated user.
-    
-    Permissions: Authenticated users only
-    """
     
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -55,14 +42,6 @@ class TaskListCreateView(generics.ListCreateAPIView):
         return TaskSerializer
     
     def get_queryset(self):
-        """
-        Return optimized tasks for the authenticated user with filtering.
-        
-        Query params:
-        - status: Filter by status (todo, in_progress, completed, cancelled)
-        - priority: Filter by priority (low, medium, high, urgent)
-        - overdue: Filter overdue tasks (true/false)
-        """
         status_param = self.request.query_params.get('status')
         priority_param = self.request.query_params.get('priority')
         overdue_param = self.request.query_params.get('overdue', '').lower() == 'true'
@@ -135,15 +114,6 @@ class TaskListCreateView(generics.ListCreateAPIView):
 
 
 class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Optimized API endpoint for task detail operations.
-    
-    GET: Retrieve task details
-    PUT/PATCH: Update task
-    DELETE: Delete task
-    
-    Permissions: Authenticated users (can only access their own tasks)
-    """
     
     permission_classes = [IsAuthenticated]
     
@@ -259,14 +229,6 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class TaskStatsView(APIView):
-    """
-    Optimized API endpoint for task statistics with caching.
-    
-    GET: Get cached task statistics for the authenticated user.
-    
-    Permissions: Authenticated users only
-    """
-    
     permission_classes = [IsAuthenticated]
     
     @extend_schema(
@@ -276,12 +238,6 @@ class TaskStatsView(APIView):
         responses={200: TaskStatsSerializer}
     )
     def get(self, request: Any) -> Response:
-        """
-        Handle GET request for task statistics using cached service layer.
-        
-        Returns:
-            Response: Task statistics data (cached for 5 minutes)
-        """
         # Use service layer with caching (5-minute TTL)
         stats = TaskService.get_task_statistics(request.user, use_cache=True)
         
@@ -300,13 +256,6 @@ class TaskStatsView(APIView):
 
 
 class BulkTaskUpdateView(APIView):
-    """
-    API endpoint for bulk task status updates.
-    
-    POST: Update status for multiple tasks at once.
-    
-    Permissions: Authenticated users only
-    """
     
     permission_classes = [IsAuthenticated]
     
@@ -348,13 +297,6 @@ class BulkTaskUpdateView(APIView):
 
 
 class BulkTaskDeleteView(APIView):
-    """
-    API endpoint for bulk task deletion.
-    
-    POST: Delete multiple tasks at once.
-    
-    Permissions: Authenticated users only
-    """
     
     permission_classes = [IsAuthenticated]
     
@@ -395,13 +337,6 @@ class BulkTaskDeleteView(APIView):
 
 
 class TaskDuplicateView(APIView):
-    """
-    API endpoint for duplicating a task.
-    
-    POST: Create a duplicate of an existing task.
-    
-    Permissions: Authenticated users only
-    """
     
     permission_classes = [IsAuthenticated]
     
